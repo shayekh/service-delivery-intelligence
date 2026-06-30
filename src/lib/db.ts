@@ -1,6 +1,8 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import type {
+  AnalysisJson,
   CreateProjectInput,
+  CustomerLogo,
   PmAnswers,
   Project,
   ProjectWithAssignees,
@@ -104,7 +106,49 @@ export async function updateProjectStatus(
   if (error) throw error;
 }
 
+export async function updateProjectPdfUrl(id: string, pdfUrl: string): Promise<void> {
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase
+    .from("projects")
+    .update({ pdf_url: pdfUrl })
+    .eq("id", id);
+
+  if (error) throw error;
+}
+
+export async function setProjectError(id: string, message: string): Promise<void> {
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase
+    .from("projects")
+    .update({ error_message: message })
+    .eq("id", id);
+
+  if (error) throw error;
+}
+
+export async function clearProjectError(id: string): Promise<void> {
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase
+    .from("projects")
+    .update({ error_message: null })
+    .eq("id", id);
+
+  if (error) throw error;
+}
+
 // Users
+
+export async function getUserById(id: string): Promise<User | null> {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as User) ?? null;
+}
 
 export async function getAllPMs(): Promise<User[]> {
   const supabase = await createServerSupabaseClient();
@@ -190,6 +234,57 @@ export async function saveTLAnswers(
     throw new Error(`saveTLAnswers failed: ${error.message} (code: ${error.code})`);
   }
   return saved as TlAnswers;
+}
+
+// Analysis
+
+export async function saveAnalysisResult(
+  projectId: string,
+  analysis: AnalysisJson
+): Promise<void> {
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.from("analysis_results").insert({
+    project_id: projectId,
+    analysis,
+    generated_at: new Date().toISOString(),
+  });
+
+  if (error) {
+    console.error("saveAnalysisResult Supabase error:", JSON.stringify(error, null, 2));
+    throw new Error(`saveAnalysisResult failed: ${error.message} (code: ${error.code})`);
+  }
+}
+
+export async function getCustomerLogoByName(
+  customerName: string
+): Promise<CustomerLogo | null> {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from("customer_logos")
+    .select("*")
+    .eq("customer_name", customerName)
+    .order("uploaded_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as CustomerLogo) ?? null;
+}
+
+export async function getAnalysisResult(
+  projectId: string
+): Promise<AnalysisJson | null> {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from("analysis_results")
+    .select("analysis")
+    .eq("project_id", projectId)
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data?.analysis as AnalysisJson) ?? null;
 }
 
 // Settings

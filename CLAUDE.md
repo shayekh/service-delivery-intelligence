@@ -12,7 +12,7 @@ SELISE Digital Platforms that automates Quarterly Service Delivery Reviews.
 
 Product Managers create review sessions, answer their questions, and
 Tech Leads answer theirs independently. Once both submit, an AI agent
-analyses both perspectives, generates a professional 14-section PDF
+analyses both perspectives, generates a professional 15-section PDF
 report, and emails it to customer stakeholders.
 
 This is an **internal tool** — not a public SaaS product.
@@ -80,10 +80,13 @@ PM CREATES PROJECT
 
 PM ANSWERS QUESTIONNAIRE
 → PM opens project → clicks "Start PM Review"
-→ Step-by-step questionnaire (11 steps — prepared_by is auto-populated
-  from the logged-in PM's name and role, not asked as a step)
+→ Step-by-step questionnaire (10 steps — prepared_by and reporting period
+  are auto-populated, not asked as steps)
+→ Steps: Delivery Focus, Delivery Status, Service Overview, Key Achievements,
+  Workstream Status, Service Metrics, Customer Feedback, Relationship Health,
+  Additional Notes, Review Summary
 → Draft saved automatically on every step
-→ Step 11: Review Summary — see all answers, edit any, Submit Review
+→ Step 10: Review Summary — see all answers, edit any, Submit Review
 → Overwrite Warning modal if resubmitting
 → pm_answers saved → project status: "awaiting_tl" (PM submitted, waiting on TL)
 
@@ -92,10 +95,12 @@ alongside the PM's review)
 → TL logs in → Dashboard
 → Sees all projects, including ones awaiting TL submission
 → Opens project → clicks "Start TL Review"
-→ Step-by-step questionnaire (7 steps)
+→ Step-by-step questionnaire (8 steps)
+→ Steps: Technical Delivery Focus, Delivery Status, Technical Achievements,
+  Support & Incidents, Quality & Health, Risks & Issues, Next Quarter Focus,
+  Review Summary
 → For status question: sees PM's answer above their own
   → disagreement flagged inline in real time
-→ For reporting period: pre-filled from PM session, locked
 → Draft saved automatically
 → Step 8: Review Summary → Submit Review
 → tl_answers saved → project status: "awaiting_pm" if PM hasn't submitted
@@ -105,15 +110,16 @@ AI AGENT (triggers automatically once BOTH pm_answers and tl_answers exist)
 → project status: "processing"
 → Step 1: Cross-analyse overlapping answers
           AGREE / DISAGREE / COMPLEMENT / BLIND_SPOT
-→ Step 2: Detect patterns across all 14 report sections
-→ Step 3: Generate S10–S14
+→ Step 2: Detect patterns across all 15 report sections
+→ Step 3: Generate S10–S15
 → Step 4: Self-check — verify all placeholders filled
 → analysis saved to Supabase
 → project status: "Generating PDF"
 
 PDF GENERATION (triggers after agent)
-→ 14-section Quarterly Service Delivery Report generated
-→ Saved to Supabase Storage
+→ 15-section Quarterly Service Delivery Report generated
+→ Saved to Supabase Storage bucket "reports"
+→ projects.pdf_url stores the PDF public URL
 → project status: "Ready"
 
 EMAIL
@@ -125,13 +131,13 @@ EMAIL
 ```
 
 ### Status Logic
-- Initial status on project creation: `not_started` (renamed from `awaiting_pm`)
+- Initial status on project creation: `not_started`
 - PM and TL can answer simultaneously — no waiting for each other
 - Status logic:
   - Neither submitted → `not_started`
   - PM submitted only → `awaiting_tl`
   - TL submitted only → `awaiting_pm`
-  - Both submitted → `processing` → AI triggers automatically
+  - Both submitted → `processing` → AI triggers automatically → `ready` → `sent`
 
 ---
 
@@ -235,8 +241,8 @@ uploaded_at     timestamp
 | `/signup` | Signup page | Unauthenticated |
 | `/dashboard` | All projects + status table | PM, TL |
 | `/projects/[id]` | Project detail + report preview + send email | PM, TL |
-| `/projects/[id]/pm` | PM questionnaire (11 steps) | PM only |
-| `/projects/[id]/tl` | TL questionnaire (7 steps) | TL only |
+| `/projects/[id]/pm` | PM questionnaire (10 steps) | PM only |
+| `/projects/[id]/tl` | TL questionnaire (8 steps) | TL only |
 | `/settings` | Schedule, branding, email recipients, logo upload | PM, TL |
 
 ---
@@ -250,7 +256,7 @@ uploaded_at     timestamp
   "Structured quarterly reviews for Product Managers and Tech Leads —
   AI-analysed and delivered automatically."
 - Right: Card with Login / Sign Up tab switcher
-  - Work Email, Password, role selector (Product Manager / Tech Lead), Login button
+  - Work Email, Password, Login button (no role selector — role fetched from DB after login)
 - Footer: SELISE DIGITAL PLATFORMS
 
 ### 2. Sign Up Page (dark theme)
@@ -264,7 +270,7 @@ uploaded_at     timestamp
 ### 3. Dashboard (light theme)
 - Heading: "Project Reviews"
 - "Add Project" button top right → opens New Project slide-in modal
-- Project table columns: Project | Quarter | Product Manager | Tech Lead | Status | Action
+- Project table columns: PROJECT | QUARTER | PRODUCT MANAGER | TECH LEAD | STATUS | ACTION
 - Legend above table: ● Not started ● One role submitted ● Both submitted / ready ● Report sent
 - Status chips:
   - Grey "Not started" → neither PM nor TL has submitted
@@ -293,14 +299,18 @@ uploaded_at     timestamp
   - Recipient Emails: tag-style email input
 - Buttons: Cancel | Create Project (primary blue)
 
-### 5. PM Questionnaire (11 steps)
+### 5. PM Questionnaire (10 steps)
 - Header: Customer + Quarter, "Product Manager Review" title
-- Blue progress bar + "Step X of 11" top right
+- Blue progress bar + "Step X of 10" top right
 - "Draft saved automatically" on every step
 - Previous | Next buttons
-- prepared_by is not a step — auto-populated from the logged-in PM's
-  full name + role (e.g. "John Smith, Product Manager")
-- Step 11: Review Summary
+- prepared_by is auto-populated from the logged-in PM's full name + role
+  (e.g. "John Smith, Product Manager") — not a questionnaire step
+- Reporting period is auto-populated from project.quarter — not a questionnaire step
+- Steps: Delivery Focus, Delivery Status, Service Overview, Key Achievements,
+  Workstream Status, Service Metrics, Customer Feedback, Relationship Health,
+  Additional Notes, Review Summary
+- Step 10: Review Summary
   - "Review your answers before submitting"
   - Lists each answer with Edit link
   - Note: "Submitting notifies your admin — the AI report generates
@@ -312,16 +322,16 @@ uploaded_at     timestamp
     to review again."
   - Cancel | Overwrite buttons
 
-### 6. TL Questionnaire (7 steps)
+### 6. TL Questionnaire (8 steps)
 - Header: "Tech Lead Review" title
 - Same step-by-step UX as PM
+- Steps: Technical Delivery Focus, Delivery Status, Technical Achievements,
+  Support & Incidents, Quality & Health, Risks & Issues, Next Quarter Focus,
+  Review Summary
 - Status question (tl_q2): shows PM's answer above TL's choice for comparison
   - If they differ → inline warning:
     "Differs from Customer Manager Course — this disagreement will be
     flagged in the report"
-- Reporting period step: pre-filled from PM session, locked with note:
-  "The period must match the PM's answer so the two reviews merge
-  into one report"
 - Step 8: Review Summary → Submit Review
 
 ### 7. Question Types
@@ -357,16 +367,12 @@ uploaded_at     timestamp
 ### 8. Report Preview Page
 - Header: Customer name (bold) | Quarter badge | Prepared by: [PM name], [TL name]
 - Top right: Download PDF button + Send Report button (primary)
-- Left sidebar navigation to all sections:
-  - PM SUBMITTED: Executive Summary | Delivery Status | Key Achievements |
-    Health Rating | Risks & Blockers | Customer Satisfaction | Rolling Milestones
-  - AI SYNTHESISED: Cross-Analysis Summary | Lessons Learned |
-    Management Attention | Closing Note
+- Left sidebar navigation to all sections with scroll-spy active highlighting
 - Each section tagged: "PM Submitted" (blue) | "TL Submitted" (blue) | "AI Synthesised" (purple)
-- S10 Cross-Analysis: each finding tagged:
+- S11 Cross-Analysis: each finding tagged:
   COMPLEMENT (green) | AGREE (blue) | BLIND SPOT (amber) | DISAGREE (red)
-- S13 Management Attention: cards with title + description + urgency
-- S14 Closing Note: grey/blue highlighted box
+- S14 Management Attention: cards with title + description + urgency
+- S15 Closing Note: grey/blue highlighted box
 
 ### 9. Settings Page
 - Subtitle: "Report delivery schedule and branding for SELISE Digital Platforms"
@@ -382,10 +388,11 @@ uploaded_at     timestamp
 
 ---
 
-## PM Questions (11 total)
+## PM Questions (10 steps total)
 
 `prepared_by` is not a questionnaire step — it's auto-populated from the
 logged-in PM's `full_name` + role (e.g. "John Smith, Product Manager").
+Reporting period is also auto-populated from project.quarter — not a step.
 
 ### Delivery & Overview → S1, S2
 | Key | Question | Input Type |
@@ -409,7 +416,7 @@ logged-in PM's `full_name` + role (e.g. "John Smith, Product Manager").
 
 ---
 
-## TL Questions (7 total)
+## TL Questions (8 steps total)
 
 ### Delivery & Achievements → S1, S3, S4
 | Key | Question | Input Type |
@@ -432,7 +439,7 @@ logged-in PM's `full_name` + role (e.g. "John Smith, Product Manager").
 
 ---
 
-## Report Structure (14 sections — do not change)
+## Report Structure (15 sections — do not change)
 
 ```
 S1  Executive Summary          → 4 prose paragraphs, inline status badge
@@ -447,14 +454,16 @@ S9  Customer Feedback           → 2-col table + inline relationship health bad
 
 ── AI GENERATED ─────────────────────────────────────────────
 
-S10 Cross-Analysis Summary     → findings tagged AGREE/DISAGREE/COMPLEMENT/BLIND_SPOT
-S11 Lessons Learned            → numbered list with context and action
-S12 Next Quarter Focus         → table (Focus Area | Expected Outcome | Owner)
-S13 Management Attention       → urgency cards (High/Medium/Low)
-S14 Closing Note               → grey box, professional tone
+S10 Value Delivered            → 4 paragraphs: Business Value, Operational Value,
+                                  Technical Value, Strategic Value
+S11 Cross-Analysis Summary     → findings tagged AGREE/DISAGREE/COMPLEMENT/BLIND_SPOT
+S12 Lessons Learned            → numbered list with context and action
+S13 Next Quarter Focus         → table (Focus Area | Expected Outcome | Owner)
+S14 Management Attention       → urgency cards (High/Medium/Low)
+S15 Closing Note               → grey box, professional tone
 
 COVER PAGE
-→ Full page background: assets/cover_bg.jpg
+→ Full page background: assets/cover_bg.png (must be PNG)
 → SELISE logo top right — cover page only
 → Dark banner bottom 25%: Customer Name | Reporting Period | Date
 → Customer logo bottom right (Supabase Storage) — optional
@@ -502,19 +511,25 @@ FOOTER (all pages except cover):
     }
   },
   "ai_generated": {
-    "s10_cross_analysis": [
+    "s10_value_delivered": {
+      "business_value": "...",
+      "operational_value": "...",
+      "technical_value": "...",
+      "strategic_value": "..."
+    },
+    "s11_cross_analysis": [
       { "topic": "...", "relationship": "AGREE|DISAGREE|COMPLEMENT|BLIND_SPOT", "finding": "..." }
     ],
-    "s11_lessons_learned": [{ "lesson": "...", "context": "...", "action": "..." }],
-    "s12_next_quarter_focus": [
+    "s12_lessons_learned": [{ "lesson": "...", "context": "...", "action": "..." }],
+    "s13_next_quarter_focus": [
       { "focus_area": "...", "expected_outcome": "...", "owner": "Product Manager|Tech Lead|Product Manager, Tech Lead" }
     ],
-    "s13_management_attention": [
+    "s14_management_attention": [
       { "item": "...", "type": "Decision|Approval|Budget|Resource|Escalation|Misalignment",
         "explanation": "...", "urgency": "High|Medium|Low",
         "source": "Product Manager|Tech Lead|Product Manager, Tech Lead|Disagreement" }
     ],
-    "s14_closing_note": "..."
+    "s15_closing_note": "..."
   }
 }
 ```
@@ -523,7 +538,7 @@ FOOTER (all pages except cover):
 
 ## Report → Question Mapping
 
-Every placeholder in the 14-section report is filled by a specific question or AI synthesis.
+Every placeholder in the 15-section report is filled by a specific question or AI synthesis.
 This is the source of truth — never deviate from this mapping.
 
 | Report Section | Placeholder | Filled By | Source |
@@ -572,11 +587,12 @@ This is the source of truth — never deviate from this mapping.
 | S10: Business Value | [paragraph] | AI synthesis | Agent (S3, S5, S9) |
 | S10: Operational Value | [paragraph] | AI synthesis | Agent (S6, S7) |
 | S10: Technical Value | [paragraph] | AI synthesis | Agent (S3, S7) |
-| S10: Strategic Value | [paragraph] | Agent (S8, S12) | AI synthesis |
-| S11: Lessons Learned | [lesson + context + action] | AI synthesis | Agent (S6, S7, S8 + disagreements) |
-| S12: Focus Area table | Focus Area / Expected Outcome / Owner | AI synthesis | Agent (pm_q1 + tl_q7) |
-| S13: Management Attention | Item / Type / Urgency / Source | AI synthesis | Agent (S8, S9 + disagreements) |
-| S14: Closing Note | [professional closing paragraph] | AI synthesis | Agent (S12) |
+| S10: Strategic Value | [paragraph] | AI synthesis | Agent (S8, S13) |
+| S11: Cross-Analysis | [findings tagged AGREE/DISAGREE/COMPLEMENT/BLIND_SPOT] | AI synthesis | Agent (all questions) |
+| S12: Lessons Learned | [lesson + context + action] | AI synthesis | Agent (S6, S7, S8 + disagreements) |
+| S13: Focus Area table | Focus Area / Expected Outcome / Owner | AI synthesis | Agent (pm_q1 + tl_q7) |
+| S14: Management Attention | Item / Type / Urgency / Source | AI synthesis | Agent (S8, S9 + disagreements) |
+| S15: Closing Note | [professional closing paragraph] | AI synthesis | Agent (S13) |
 
 **Parsing rules for free-text answers:**
 - pm_q3 → parsed into 5 fields: active_services, delivery_model, key_stakeholders, team_composition, reporting_cadence
@@ -601,11 +617,11 @@ This is the source of truth — never deviate from this mapping.
 | One sees risk, other doesn't | Surface as BLIND SPOT in S10 + lesson in S11 |
 | One answered, other didn't | Note the gap — do not fabricate |
 
-**Status disagreement rule:** pm_q2 ≠ tl_q2 → always escalates to S13,
+**Status disagreement rule:** pm_q2 ≠ tl_q2 → always escalates to S14,
 flagged inline in TL questionnaire in real time.
 
-**Owner field in S12:** "Product Manager" | "Tech Lead" | "Product Manager, Tech Lead" — never "Both"
-**Source field in S13:** "Product Manager" | "Tech Lead" | "Product Manager, Tech Lead" | "Disagreement" — never "Both"
+**Owner field in S13:** "Product Manager" | "Tech Lead" | "Product Manager, Tech Lead" — never "Both"
+**Source field in S14:** "Product Manager" | "Tech Lead" | "Product Manager, Tech Lead" | "Disagreement" — never "Both"
 
 ---
 
@@ -617,11 +633,14 @@ flagged inline in TL questionnaire in real time.
 - Both Assign PM and Assign TL are mandatory when creating a project
 - TL sees all projects on dashboard and can open any awaiting TL submission
 - AI triggers only when BOTH have submitted
+- PDF generated after AI analysis completes — stored in Supabase Storage bucket "reports"
+- projects.pdf_url stores the PDF public URL
 - All free-text answers described naturally — AI parses into structured tables
 - Date format: DD Month, YYYY (e.g. 28 June, 2026)
 - Status badges: Green / Amber / Red — inline, never on separate line
 - AI must generate original insights — never copy-paste input text
 - Customer logo optional — hide if not uploaded
+- Role selector removed from login page — role fetched from DB after login
 - SEND_EMAIL=False during all development
 
 ---
@@ -715,16 +734,16 @@ service-delivery-intelligence/
 
 | Phase | What to Build | Status |
 |-------|--------------|--------|
-| 1 | Project scaffold — Next.js 14, Supabase, Shadcn/ui, Tailwind, TypeScript | ⬜ |
-| 2 | Auth — signup (role selection), login, protected routes | ⬜ |
-| 3 | Database — Supabase schema, migrations | ⬜ |
-| 4 | Dashboard — project table, status chips, role-aware view | ⬜ |
-| 5 | New Project — slide-in modal, assign PM/TL, create session | ⬜ |
-| 6 | PM Questionnaire — 11 steps, all question types, auto-save, review summary, overwrite modal | ⬜ |
-| 7 | TL Questionnaire — 7 steps, locked until PM submits, disagreement flagging | ⬜ |
-| 8 | AI Agent — Claude API, analysis.json, cross-analysis tags | ⬜ |
-| 9 | PDF Generation — 14-section report, cover page, all tables | ⬜ |
-| 10 | Report Preview — web view, section tags, download + send buttons | ⬜ |
+| 1 | Project scaffold — Next.js 14, Supabase, Shadcn/ui, Tailwind, TypeScript | ✅ |
+| 2 | Auth — signup (role selection), login, protected routes | ✅ |
+| 3 | Database — Supabase schema, migrations | ✅ |
+| 4 | Dashboard — project table, status chips, role-aware view | ✅ |
+| 5 | New Project — slide-in modal, assign PM/TL, create session | ✅ |
+| 6 | PM Questionnaire — 10 steps, all question types, auto-save, review summary, overwrite modal | ✅ |
+| 7 | TL Questionnaire — 8 steps, disagreement flagging, auto-save | ✅ |
+| 8 | AI Agent — Claude API, analysis.json, cross-analysis tags | ✅ |
+| 9 | PDF Generation — 14-section report + Value Delivered, cover page, all tables | ✅ |
+| 10 | Report Preview — web view, section tags, sidebar nav, scroll-spy | ✅ |
 | 11 | Email — HTML body, Resend, manual send + scheduler | ⬜ |
 | 12 | Settings — cadence, send day, recipients, logo upload, live cover preview | ⬜ |
 | 13 | End-to-end test — full flow from signup to email received | ⬜ |
@@ -745,11 +764,20 @@ service-delivery-intelligence/
 
 ---
 
+## Known Issues / Pending Fixes
+
+- PDF page break orphan issue — section headers can appear at the bottom of a page without
+  content following them; partial fix applied (ensureSpace 100pt before section headers),
+  may still occur with very tall first rows
+- Cover background image must be PNG — use `assets/cover_bg.png` (not .jpg)
+- SEND_EMAIL=False during all development — never set to True until Phase 13
+
+---
+
 ## Last Updated
-June 29, 2026 — Full rewrite with all 9 UI screens documented from Claude Design.
-Screens: Login, Sign Up, Dashboard, New Project modal, PM Questionnaire,
-TL Questionnaire (with disagreement flagging), Question Types, Report Preview, Settings.
-All question types documented: Choice, Free Text, Numeric Table, Email List.
-Overwrite warning modal added. Cross-analysis tags (AGREE/DISAGREE/COMPLEMENT/BLIND_SPOT) added.
-Internal tool for SELISE Digital Platforms. Roles: PM and TL only.
-Stack: Next.js 14, Supabase, Shadcn/ui, Anthropic Claude API, Resend, Vercel.
+July 1, 2026 — Updated to reflect completed phases 1–10.
+PM questionnaire revised to 10 steps (prepared_by and reporting period auto-populated).
+TL questionnaire revised to 8 steps. Report expanded to 15 sections with S10 Value Delivered.
+analysis.json schema updated with s10_value_delivered and renumbered ai_generated keys (s11–s15).
+Build phases 1–10 marked complete. Known issues section added.
+Role selector removed from login page. PDF stored in Supabase Storage bucket "reports".

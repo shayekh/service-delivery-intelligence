@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QuestionStep } from "@/components/QuestionStep";
 import { ProgressBar } from "@/components/ProgressBar";
+import { SubmittingOverlay } from "@/components/SubmittingOverlay";
 import { Button } from "@/components/ui/button";
 import { MetricsTable, type MetricRow } from "@/components/MetricsTable";
 import { WorkstreamTable, type WorkstreamRow } from "@/components/WorkstreamTable";
@@ -380,6 +381,12 @@ export function PmQuestionnaireClient({
     { step: 8, label: "Relationship Health", preview: choiceBadge(pmQ8) },
     { step: 9, label: "Additional Notes", preview: preview(notes) },
   ];
+
+  if (isSubmitting) {
+    return (
+      <SubmittingOverlay message="Submitting your review — if both reviews are now complete, the AI report will generate automatically. This may take up to 30 seconds." />
+    );
+  }
 
   if (showOverwriteModal) {
     return (

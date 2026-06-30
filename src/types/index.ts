@@ -32,6 +32,7 @@ export interface Project {
   email_sent_at: string | null;
   created_by: string | null;
   created_at: string;
+  error_message: string | null;
 }
 
 export interface PmAnswers {
@@ -159,12 +160,12 @@ export interface AnalysisJson {
     }[];
     s6_support_summary: {
       ticket_counts: {
-        total: string;
-        resolved: string;
-        open: string;
-        critical: string;
-        major: string;
-        recurring: string;
+        total: { count: string; summary: string };
+        resolved: { count: string; summary: string };
+        open: { count: string; summary: string };
+        critical: { count: string; summary: string };
+        major: { count: string; summary: string };
+        recurring: { count: string; summary: string };
       };
       major_incidents: {
         date: string;
@@ -198,6 +199,12 @@ export interface AnalysisJson {
     };
   };
   ai_generated: {
+    s10_value_delivered: {
+      business_value: string;
+      operational_value: string;
+      technical_value: string;
+      strategic_value: string;
+    };
     s10_cross_analysis: {
       topic: string;
       relationship: CrossAnalysisRelationship;

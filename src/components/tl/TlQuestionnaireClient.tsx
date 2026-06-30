@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QuestionStep } from "@/components/QuestionStep";
 import { ProgressBar } from "@/components/ProgressBar";
+import { SubmittingOverlay } from "@/components/SubmittingOverlay";
 import { Button } from "@/components/ui/button";
 import {
   TicketCountsTable,
@@ -368,6 +369,12 @@ export function TlQuestionnaireClient({
     { step: 6, label: "Risks & Issues", preview: `${risks.length} rows entered` },
     { step: 7, label: "Next Quarter Focus", preview: preview(tlQ7) },
   ];
+
+  if (isSubmitting) {
+    return (
+      <SubmittingOverlay message="Submitting your review — if both reviews are now complete, the AI report will generate automatically. This may take up to 30 seconds." />
+    );
+  }
 
   if (showOverwriteModal) {
     return (
