@@ -34,7 +34,13 @@ export async function getAllProjectsWithAssignees(): Promise<
 > {
   const supabase = await createServerSupabaseClient();
 
-  const [projectsResult, pmAnswersResult, tlAnswersResult] = await Promise.all([
+  const [
+    projectsResult,
+    pmSubmittedResult,
+    tlSubmittedResult,
+    pmDraftResult,
+    tlDraftResult,
+  ] = await Promise.all([
     supabase
       .from("projects")
       .select(
@@ -43,17 +49,27 @@ export async function getAllProjectsWithAssignees(): Promise<
       .order("created_at", { ascending: false }),
     supabase.from("pm_answers").select("project_id").not("submitted_at", "is", null),
     supabase.from("tl_answers").select("project_id").not("submitted_at", "is", null),
+    supabase.from("pm_answers").select("project_id").is("submitted_at", null),
+    supabase.from("tl_answers").select("project_id").is("submitted_at", null),
   ]);
 
   if (projectsResult.error) throw projectsResult.error;
-  if (pmAnswersResult.error) throw pmAnswersResult.error;
-  if (tlAnswersResult.error) throw tlAnswersResult.error;
+  if (pmSubmittedResult.error) throw pmSubmittedResult.error;
+  if (tlSubmittedResult.error) throw tlSubmittedResult.error;
+  if (pmDraftResult.error) throw pmDraftResult.error;
+  if (tlDraftResult.error) throw tlDraftResult.error;
 
   const pmSubmittedProjectIds = new Set(
-    (pmAnswersResult.data ?? []).map((row) => row.project_id)
+    (pmSubmittedResult.data ?? []).map((row) => row.project_id)
   );
   const tlSubmittedProjectIds = new Set(
-    (tlAnswersResult.data ?? []).map((row) => row.project_id)
+    (tlSubmittedResult.data ?? []).map((row) => row.project_id)
+  );
+  const pmDraftProjectIds = new Set(
+    (pmDraftResult.data ?? []).map((row) => row.project_id)
+  );
+  const tlDraftProjectIds = new Set(
+    (tlDraftResult.data ?? []).map((row) => row.project_id)
   );
 
   return ((projectsResult.data ?? []) as unknown as ProjectWithAssigneesRow[]).map(
@@ -63,6 +79,8 @@ export async function getAllProjectsWithAssignees(): Promise<
       assigned_tl_name: row.assigned_tl_user?.full_name ?? null,
       pm_submitted: pmSubmittedProjectIds.has(row.id),
       tl_submitted: tlSubmittedProjectIds.has(row.id),
+      pm_draft: pmDraftProjectIds.has(row.id),
+      tl_draft: tlDraftProjectIds.has(row.id),
     })
   );
 }

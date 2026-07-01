@@ -1,5 +1,5 @@
-import { Send } from "lucide-react";
 import { DownloadPdfButton } from "@/components/report/DownloadPdfButton";
+import { SendReportButton } from "@/components/report/SendReportButton";
 import type { AnalysisJson, Project } from "@/types";
 
 function StatusPill({ status }: { status: Project["status"] }) {
@@ -34,7 +34,9 @@ export function ReportHeader({
         <div>
           <div className="flex items-center gap-3">
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-600">
-              Quarterly Service Delivery Review
+              {project.review_cadence === "monthly"
+                ? "Monthly Service Delivery Review"
+                : "Quarterly Service Delivery Review"}
             </p>
             <StatusPill status={project.status} />
           </div>
@@ -48,14 +50,10 @@ export function ReportHeader({
 
         <div className="flex shrink-0 items-start gap-3 pt-1">
           <DownloadPdfButton projectId={project.id} />
-          <button
-            disabled
-            title="Available after Phase 11"
-            className="flex cursor-not-allowed items-center gap-2 rounded-lg bg-blue-200 px-4 py-2 text-sm text-white"
-          >
-            <Send className="h-4 w-4" />
-            Send Report
-          </button>
+          <SendReportButton
+            projectId={project.id}
+            recipientEmails={project.recipient_emails ?? []}
+          />
         </div>
       </div>
     </header>

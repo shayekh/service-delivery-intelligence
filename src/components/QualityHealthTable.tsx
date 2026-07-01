@@ -33,7 +33,7 @@ const STATUS_OPTION_COLORS: Record<string, { background: string; color: string }
 };
 
 const TEXTAREA_CLASS =
-  "w-full resize-none rounded border border-slate-200 px-2 py-1.5 text-sm outline-none focus:border-blue-400";
+  "w-full min-h-[3.5rem] resize-none rounded border border-slate-200 px-2 py-1.5 text-sm outline-none focus:border-blue-400";
 
 export function QualityHealthTable({
   rows,
@@ -50,10 +50,10 @@ export function QualityHealthTable({
     <div className="overflow-hidden rounded-lg border border-slate-200">
       <table className="w-full table-fixed">
         <colgroup>
-          <col style={{ width: "20%" }} />
-          <col style={{ width: "35%" }} />
           <col style={{ width: "15%" }} />
           <col style={{ width: "30%" }} />
+          <col style={{ width: "12%" }} />
+          <col style={{ width: "43%" }} />
         </colgroup>
         <thead className="border-b bg-slate-50 text-xs uppercase text-slate-500">
           <tr>

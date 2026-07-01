@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireAuth } from "@/lib/auth";
-import { getPMAnswers, getProjectById } from "@/lib/db";
+import { getPMAnswers, getProjectById, getTLAnswers } from "@/lib/db";
 import { PmQuestionnaireClient } from "@/components/pm/PmQuestionnaireClient";
 
 export const dynamic = "force-dynamic";
@@ -18,13 +18,17 @@ export default async function PmQuestionnairePage({
     redirect("/dashboard");
   }
 
-  const answers = await getPMAnswers(id);
+  const [answers, tlAnswers] = await Promise.all([
+    getPMAnswers(id),
+    getTLAnswers(id),
+  ]);
 
   return (
     <PmQuestionnaireClient
       project={project}
       initialAnswers={answers}
       currentUser={user}
+      tlHasSubmitted={!!tlAnswers?.submitted_at}
     />
   );
 }

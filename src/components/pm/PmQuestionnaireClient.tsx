@@ -249,10 +249,12 @@ export function PmQuestionnaireClient({
   project,
   initialAnswers,
   currentUser,
+  tlHasSubmitted = false,
 }: {
   project: Project;
   initialAnswers: PmAnswers | null;
   currentUser: User;
+  tlHasSubmitted?: boolean;
 }) {
   const router = useRouter();
   const currentUserId = currentUser.id;
@@ -384,7 +386,13 @@ export function PmQuestionnaireClient({
 
   if (isSubmitting) {
     return (
-      <SubmittingOverlay message="Submitting your review — if both reviews are now complete, the AI report will generate automatically. This may take up to 30 seconds." />
+      <SubmittingOverlay
+        message={
+          tlHasSubmitted
+            ? "Both reviews are now submitted — the AI report is generating. This may take up to 30 seconds."
+            : "Review submitted — waiting on the Tech Lead to complete their review before the report can generate."
+        }
+      />
     );
   }
 

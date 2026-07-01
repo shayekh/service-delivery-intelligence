@@ -100,6 +100,8 @@ export interface ProjectWithAssignees extends Project {
   assigned_tl_name: string | null;
   pm_submitted: boolean;
   tl_submitted: boolean;
+  pm_draft: boolean;
+  tl_draft: boolean;
 }
 
 export interface CreateProjectInput {

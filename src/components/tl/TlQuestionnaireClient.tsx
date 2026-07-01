@@ -278,7 +278,8 @@ export function TlQuestionnaireClient({
   );
   const [tlQ7, setTlQ7] = useState(initialAnswers?.tl_q7 ?? "");
 
-  const pmStatus = pmAnswers?.submitted_at ? pmAnswers.pm_q2 : null;
+  const pmHasSubmitted = !!pmAnswers?.submitted_at;
+  const pmStatus = pmHasSubmitted ? pmAnswers.pm_q2 : null;
   const showDisagreementWarning = !!pmStatus && !!tlQ2 && tlQ2 !== pmStatus;
 
   function buildPayload(): Omit<TlAnswers, "id"> {
@@ -372,7 +373,13 @@ export function TlQuestionnaireClient({
 
   if (isSubmitting) {
     return (
-      <SubmittingOverlay message="Submitting your review — if both reviews are now complete, the AI report will generate automatically. This may take up to 30 seconds." />
+      <SubmittingOverlay
+        message={
+          pmHasSubmitted
+            ? "Both reviews are now submitted — the AI report is generating. This may take up to 30 seconds."
+            : "Review submitted — waiting on the Product Manager to complete their review before the report can generate."
+        }
+      />
     );
   }
 
@@ -523,6 +530,7 @@ export function TlQuestionnaireClient({
           sectionLabel="Quality & Health"
           question="How was overall quality and delivery health this quarter?"
           helper="Rate each area and describe what you observed."
+          width="full"
           footer={footer}
         >
           <QualityHealthTable rows={qualityHealth} onChange={setQualityHealth} />

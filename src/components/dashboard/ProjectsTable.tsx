@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Check, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/StatusChip";
+import { DeleteProjectButton } from "@/components/dashboard/DeleteProjectButton";
 import { getInitials } from "@/lib/utils";
 import type { ProjectWithAssignees, User } from "@/types";
 
@@ -60,7 +61,7 @@ function ActionCell({
           render={<Link href={`/projects/${project.id}/pm`} />}
           className="bg-blue-600 text-white hover:bg-blue-600/90"
         >
-          Fill your section
+          {project.pm_draft ? "Continue" : "Fill your section"}
         </Button>
       );
     }
@@ -90,7 +91,7 @@ function ActionCell({
           render={<Link href={`/projects/${project.id}/tl`} />}
           className="bg-blue-600 text-white hover:bg-blue-600/90"
         >
-          Fill your section
+          {project.tl_draft ? "Continue" : "Fill your section"}
         </Button>
       );
     }
@@ -205,7 +206,18 @@ export function ProjectsTable({
                   <StatusChip project={project} />
                 </td>
                 <td className="px-6 py-4">
-                  <ActionCell project={project} currentUser={currentUser} />
+                  <div className="flex items-center gap-2">
+                    <ActionCell project={project} currentUser={currentUser} />
+                    {(project.assigned_pm === currentUser.id ||
+                      project.assigned_tl === currentUser.id) &&
+                      !project.pm_submitted &&
+                      !project.tl_submitted && (
+                        <DeleteProjectButton
+                          projectId={project.id}
+                          projectName={project.project_name}
+                        />
+                      )}
+                  </div>
                 </td>
               </tr>
             ))}
