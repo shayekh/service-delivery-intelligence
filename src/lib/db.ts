@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { createAdminSupabaseClient } from "@/lib/supabase-admin";
 import type {
   AnalysisJson,
   CreateProjectInput,
@@ -294,6 +295,22 @@ export async function getAnalysisResult(
 ): Promise<AnalysisJson | null> {
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
+    .from("analysis_results")
+    .select("analysis")
+    .eq("project_id", projectId)
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data?.analysis as AnalysisJson) ?? null;
+}
+
+export async function getAnalysisResultAdmin(
+  projectId: string
+): Promise<AnalysisJson | null> {
+  const admin = createAdminSupabaseClient();
+  const { data, error } = await admin
     .from("analysis_results")
     .select("analysis")
     .eq("project_id", projectId)

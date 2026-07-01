@@ -12,9 +12,11 @@ function isValidEmail(v: string) {
 export function SendReportButton({
   projectId,
   recipientEmails,
+  manualEmailSentAt,
 }: {
   projectId: string;
   recipientEmails: string[];
+  manualEmailSentAt: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [chips, setChips] = useState<string[]>([]);
@@ -23,6 +25,7 @@ export function SendReportButton({
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [apiError, setApiError] = useState("");
+  const [lastSentAt, setLastSentAt] = useState<string | null>(manualEmailSentAt);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function openDialog() {
@@ -84,6 +87,7 @@ export function SendReportButton({
         return;
       }
       setSent(true);
+      setLastSentAt(new Date().toISOString());
     } catch {
       setApiError("Network error. Please try again.");
     } finally {
@@ -91,15 +95,30 @@ export function SendReportButton({
     }
   }
 
+  const formattedLastSent = lastSentAt
+    ? new Date(lastSentAt).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : null;
+
   return (
     <>
-      <button
-        onClick={openDialog}
-        className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 active:bg-blue-800"
-      >
-        <Send className="h-4 w-4" />
-        Send Report
-      </button>
+      <div className="flex flex-col items-end gap-1">
+        <button
+          onClick={openDialog}
+          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 active:bg-blue-800"
+        >
+          <Send className="h-4 w-4" />
+          {lastSentAt ? "Resend Report" : "Send Report"}
+        </button>
+        {formattedLastSent && (
+          <p className="text-xs text-slate-400">
+            Last sent manually on {formattedLastSent}
+          </p>
+        )}
+      </div>
 
       {open && (
         <div

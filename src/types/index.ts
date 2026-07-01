@@ -30,6 +30,7 @@ export interface Project {
   status: ProjectStatus;
   pdf_url: string | null;
   email_sent_at: string | null;
+  manual_email_sent_at: string | null;
   created_by: string | null;
   created_at: string;
   error_message: string | null;
@@ -82,7 +83,7 @@ export interface Settings {
   organisation_name: string;
   organisation_logo: string | null;
   delivery_cadence: ReviewCadence;
-  send_on_day: number | null;
+  send_on_day: number;
   recipient_emails: string[];
   updated_at: string;
 }

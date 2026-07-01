@@ -20,7 +20,7 @@ export async function POST(
     return NextResponse.json({ error: "Project not found." }, { status: 404 });
   }
 
-  if (project.status !== "ready" && project.status !== "sent") {
+  if (project.status !== "ready") {
     return NextResponse.json(
       { error: "Report is not ready to send." },
       { status: 400 }
@@ -82,11 +82,11 @@ export async function POST(
     );
   }
 
-  // Mark project as sent
+  // Record manual send timestamp — does not change status or email_sent_at (reserved for scheduler)
   const admin = createAdminSupabaseClient();
   await admin
     .from("projects")
-    .update({ status: "sent", email_sent_at: new Date().toISOString() })
+    .update({ manual_email_sent_at: new Date().toISOString() })
     .eq("id", id);
 
   return NextResponse.json({ ok: true });

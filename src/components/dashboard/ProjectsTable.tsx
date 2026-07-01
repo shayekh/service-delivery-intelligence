@@ -203,7 +203,12 @@ export function ProjectsTable({
                   <SubmissionCell submitted={project.tl_submitted} />
                 </td>
                 <td className="px-6 py-4">
-                  <StatusChip project={project} />
+                  <div className="flex flex-col gap-1">
+                    <StatusChip project={project} />
+                    {project.status === "ready" && project.manual_email_sent_at && (
+                      <span className="text-xs text-slate-400">✓ manually sent</span>
+                    )}
+                  </div>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">

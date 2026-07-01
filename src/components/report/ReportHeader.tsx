@@ -53,6 +53,7 @@ export function ReportHeader({
           <SendReportButton
             projectId={project.id}
             recipientEmails={project.recipient_emails ?? []}
+            manualEmailSentAt={project.manual_email_sent_at}
           />
         </div>
       </div>
