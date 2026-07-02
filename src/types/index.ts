@@ -52,6 +52,12 @@ export interface PmAnswers {
   pm_q8_notes: string | null;
   reporting_period: string | null;
   pm_q_notes: string | null;
+  itsm_pm_1: string | null;
+  itsm_pm_2: string | null;
+  itsm_pm_3: string | null;
+  itsm_pm_4: string | null;
+  itsm_pm_5: string | null;
+  itsm_pm_6: string | null;
   submitted_by: string | null;
   submitted_at: string | null;
 }
@@ -67,6 +73,11 @@ export interface TlAnswers {
   tl_q5: string | null;
   tl_q6: string | null;
   tl_q7: string | null;
+  itsm_tl_1: string | null;
+  itsm_tl_2: string | null;
+  itsm_tl_3: string | null;
+  itsm_tl_4: string | null;
+  itsm_tl_5: string | null;
   submitted_by: string | null;
   submitted_at: string | null;
 }
@@ -236,6 +247,13 @@ export interface AnalysisJson {
         | "Product Manager, Tech Lead"
         | "Disagreement";
     }[];
-    s14_closing_note: string;
+    s15_itsm_maturity: {
+      topic: string;
+      pm_perspective: string;
+      tl_perspective: string;
+      finding: string;
+      relationship: CrossAnalysisRelationship;
+    }[];
+    s16_closing_note: string;
   };
 }

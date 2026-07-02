@@ -19,6 +19,7 @@ import { CrossAnalysisSummary } from "@/components/report/CrossAnalysisSummary";
 import { LessonsLearnedList } from "@/components/report/LessonsLearnedList";
 import { NextQuarterFocusTable } from "@/components/report/NextQuarterFocusTable";
 import { ManagementAttentionCards } from "@/components/report/ManagementAttentionCards";
+import { ItsmMaturitySection } from "@/components/report/ItsmMaturitySection";
 import { ClosingNoteCard } from "@/components/report/ClosingNoteCard";
 
 export const dynamic = "force-dynamic";
@@ -132,8 +133,9 @@ export default async function ProjectDetailPage({
             <CrossAnalysisSummary data={ai.s10_cross_analysis} />
             <LessonsLearnedList data={ai.s11_lessons_learned} />
             <NextQuarterFocusTable data={ai.s12_next_quarter_focus} />
+            <ItsmMaturitySection data={ai.s15_itsm_maturity} />
             <ManagementAttentionCards data={ai.s13_management_attention} />
-            <ClosingNoteCard data={ai.s14_closing_note} />
+            <ClosingNoteCard data={ai.s16_closing_note} />
           </div>
         </main>
       </div>

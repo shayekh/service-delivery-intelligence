@@ -20,7 +20,7 @@ export function ManagementAttentionCards({
   data: AnalysisJson["ai_generated"]["s13_management_attention"] | undefined;
 }) {
   return (
-    <SectionCard id="section-16" number="16" title="Management Attention" tag="ai">
+    <SectionCard id="section-17" number="17" title="Management Attention" tag="ai">
       {!data?.length ? (
         <NA />
       ) : (

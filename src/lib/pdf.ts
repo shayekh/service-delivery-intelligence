@@ -821,14 +821,26 @@ export async function generateReportPdf(projectId: string): Promise<string> {
   );
   builder.spacer(8);
 
-  // S14 Management Attention
-  builder.drawSectionHeader("14", "Management Attention");
+  // S14 ITSM Maturity Summary
+  builder.drawSectionHeader("14", "ITSM Maturity Summary");
+  const itsmItems = ai.s15_itsm_maturity ?? [];
+  if (itsmItems.length === 0) {
+    builder.drawParagraph("Not provided", { italic: true, color: rgb(0.6, 0.6, 0.6) });
+  } else {
+    builder.drawCrossAnalysisList(
+      itsmItems.map((item) => ({ topic: item.topic, relationship: item.relationship, finding: item.finding }))
+    );
+  }
+  builder.spacer(8);
+
+  // S15 Management Attention
+  builder.drawSectionHeader("15", "Management Attention");
   builder.drawManagementAttentionCards(ai.s13_management_attention ?? []);
   builder.spacer(8);
 
-  // S15 Closing Note
-  builder.drawSectionHeader("15", "Closing Note");
-  builder.drawClosingNoteBox(ai.s14_closing_note);
+  // S16 Closing Note
+  builder.drawSectionHeader("16", "Closing Note");
+  builder.drawClosingNoteBox(ai.s16_closing_note);
 
   const pdfBytes = await builder.doc.save();
 

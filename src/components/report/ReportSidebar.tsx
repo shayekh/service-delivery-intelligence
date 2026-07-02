@@ -22,8 +22,9 @@ const AI_SECTIONS = [
   { id: "section-13", label: "13 Cross-Analysis Summary" },
   { id: "section-14", label: "14 Lessons Learned" },
   { id: "section-15", label: "15 Next Quarter Focus" },
-  { id: "section-16", label: "16 Management Attention" },
-  { id: "section-17", label: "17 Closing Note" },
+  { id: "section-16", label: "16 ITSM Maturity Summary" },
+  { id: "section-17", label: "17 Management Attention" },
+  { id: "section-18", label: "18 Closing Note" },
 ];
 
 const ALL_SECTIONS = [...SUBMISSION_SECTIONS, ...AI_SECTIONS];

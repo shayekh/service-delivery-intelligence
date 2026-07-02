@@ -12,7 +12,7 @@ SELISE Digital Platforms that automates Quarterly Service Delivery Reviews.
 
 Product Managers create review sessions, answer their questions, and
 Tech Leads answer theirs independently. Once both submit, an AI agent
-analyses both perspectives, generates a professional 15-section PDF
+analyses both perspectives, generates a professional 16-section PDF
 report, and emails it to customer stakeholders.
 
 This is an **internal tool** — not a public SaaS product.
@@ -80,13 +80,13 @@ PM CREATES PROJECT
 
 PM ANSWERS QUESTIONNAIRE
 → PM opens project → clicks "Start PM Review"
-→ Step-by-step questionnaire (10 steps — prepared_by and reporting period
+→ Step-by-step questionnaire (11 steps — prepared_by and reporting period
   are auto-populated, not asked as steps)
 → Steps: Delivery Focus, Delivery Status, Service Overview, Key Achievements,
   Workstream Status, Service Metrics, Customer Feedback, Relationship Health,
-  Additional Notes, Review Summary
+  ITSM & Service Maturity, Additional Notes, Review Summary
 → Draft saved automatically on every step
-→ Step 10: Review Summary — see all answers, edit any, Submit Review
+→ Step 11: Review Summary — see all answers, edit any, Submit Review
 → Overwrite Warning modal if resubmitting
 → pm_answers saved → project status: "awaiting_tl" (PM submitted, waiting on TL)
 
@@ -95,14 +95,14 @@ alongside the PM's review)
 → TL logs in → Dashboard
 → Sees all projects, including ones awaiting TL submission
 → Opens project → clicks "Start TL Review"
-→ Step-by-step questionnaire (8 steps)
+→ Step-by-step questionnaire (9 steps)
 → Steps: Technical Delivery Focus, Delivery Status, Technical Achievements,
-  Support & Incidents, Quality & Health, Risks & Issues, Next Quarter Focus,
-  Review Summary
+  Support & Incidents, Quality & Health, Risks & Issues, ITSM & Technical Maturity,
+  Next Quarter Focus, Review Summary
 → For status question: sees PM's answer above their own
   → disagreement flagged inline in real time
 → Draft saved automatically
-→ Step 8: Review Summary → Submit Review
+→ Step 9: Review Summary → Submit Review
 → tl_answers saved → project status: "awaiting_pm" if PM hasn't submitted
   yet, otherwise "processing"
 
@@ -110,14 +110,14 @@ AI AGENT (triggers automatically once BOTH pm_answers and tl_answers exist)
 → project status: "processing"
 → Step 1: Cross-analyse overlapping answers
           AGREE / DISAGREE / COMPLEMENT / BLIND_SPOT
-→ Step 2: Detect patterns across all 15 report sections
-→ Step 3: Generate S10–S15
+→ Step 2: Detect patterns across all 16 report sections
+→ Step 3: Generate S10–S16
 → Step 4: Self-check — verify all placeholders filled
 → analysis saved to Supabase
 → project status: "Generating PDF"
 
 PDF GENERATION (triggers after agent)
-→ 15-section Quarterly Service Delivery Report generated
+→ 16-section Quarterly Service Delivery Report generated
 → Saved to Supabase Storage bucket "reports"
 → projects.pdf_url stores the PDF public URL
 → project status: "Ready"
@@ -164,9 +164,10 @@ assigned_pm       uuid references users
 assigned_tl       uuid references users
 recipient_emails  text[]
 status            text        -- 'awaiting_pm' | 'awaiting_tl' | 'processing' | 'generating_pdf' | 'ready' | 'sent'
-pdf_url           text
-email_sent_at     timestamp
-created_by        uuid references users
+pdf_url                text
+email_sent_at          timestamp   -- set by scheduler only
+manual_email_sent_at   timestamp   -- set by manual send only
+created_by             uuid references users
 created_at        timestamp
 ```
 
@@ -183,6 +184,12 @@ pm_q5         text    -- workstream status summary
 pm_q6         text    -- service metrics target vs actual
 pm_q7         text    -- customer relationship
 pm_q8         text    -- relationship health: 'Green' | 'Amber' | 'Red'
+itsm_pm_1     text    -- SLA & value communication
+itsm_pm_2     text    -- service request boundaries
+itsm_pm_3     text    -- proactive improvements
+itsm_pm_4     text    -- escalation path
+itsm_pm_5     text    -- client education
+itsm_pm_6     text    -- change communication
 submitted_by  uuid references users
 submitted_at  timestamp
 ```
@@ -198,6 +205,11 @@ tl_q4         text    -- support and incident numbers
 tl_q5         text    -- quality and delivery health
 tl_q6         text    -- risks, issues, dependencies
 tl_q7         text    -- next quarter technical focus
+itsm_tl_1     text    -- environment & configuration
+itsm_tl_2     text    -- security & patch management
+itsm_tl_3     text    -- tooling & automation
+itsm_tl_4     text    -- root cause analysis
+itsm_tl_5     text    -- third-party dependency risk
 submitted_by  uuid references users
 submitted_at  timestamp
 ```
@@ -299,9 +311,9 @@ uploaded_at     timestamp
   - Recipient Emails: tag-style email input
 - Buttons: Cancel | Create Project (primary blue)
 
-### 5. PM Questionnaire (10 steps)
+### 5. PM Questionnaire (11 steps)
 - Header: Customer + Quarter, "Product Manager Review" title
-- Blue progress bar + "Step X of 10" top right
+- Blue progress bar + "Step X of 11" top right
 - "Draft saved automatically" on every step
 - Previous | Next buttons
 - prepared_by is auto-populated from the logged-in PM's full name + role
@@ -309,8 +321,8 @@ uploaded_at     timestamp
 - Reporting period is auto-populated from project.quarter — not a questionnaire step
 - Steps: Delivery Focus, Delivery Status, Service Overview, Key Achievements,
   Workstream Status, Service Metrics, Customer Feedback, Relationship Health,
-  Additional Notes, Review Summary
-- Step 10: Review Summary
+  ITSM & Service Maturity, Additional Notes, Review Summary
+- Step 11: Review Summary
   - "Review your answers before submitting"
   - Lists each answer with Edit link
   - Note: "Submitting notifies your admin — the AI report generates
@@ -322,17 +334,17 @@ uploaded_at     timestamp
     to review again."
   - Cancel | Overwrite buttons
 
-### 6. TL Questionnaire (8 steps)
+### 6. TL Questionnaire (9 steps)
 - Header: "Tech Lead Review" title
 - Same step-by-step UX as PM
 - Steps: Technical Delivery Focus, Delivery Status, Technical Achievements,
-  Support & Incidents, Quality & Health, Risks & Issues, Next Quarter Focus,
-  Review Summary
+  Support & Incidents, Quality & Health, Risks & Issues, ITSM & Technical Maturity,
+  Next Quarter Focus, Review Summary
 - Status question (tl_q2): shows PM's answer above TL's choice for comparison
   - If they differ → inline warning:
     "Differs from Customer Manager Course — this disagreement will be
     flagged in the report"
-- Step 8: Review Summary → Submit Review
+- Step 9: Review Summary → Submit Review
 
 ### 7. Question Types
 
@@ -372,7 +384,8 @@ uploaded_at     timestamp
 - S11 Cross-Analysis: each finding tagged:
   COMPLEMENT (green) | AGREE (blue) | BLIND SPOT (amber) | DISAGREE (red)
 - S14 Management Attention: cards with title + description + urgency
-- S15 Closing Note: grey/blue highlighted box
+- S15 ITSM Maturity Summary: cross-analysis findings with PM/TL perspective panels
+- S16 Closing Note: grey/blue highlighted box
 
 ### 9. Settings Page
 - Subtitle: "Report delivery schedule and branding for SELISE Digital Platforms"
@@ -414,6 +427,16 @@ Reporting period is also auto-populated from project.quarter — not a step.
 | pm_q7 | "How was the customer relationship? Cover satisfaction, communication, responsiveness, business alignment, areas of concern." | Free text |
 | pm_q8 | "Overall relationship health?" | Choice: Green / Amber / Red |
 
+### ITSM & Service Maturity → S15
+| Key | Question | Input Type |
+|-----|----------|------------|
+| itsm_pm_1 | "Were SLAs/SLOs reviewed with the client this quarter, and did they clearly understand what's covered under standard support vs. billable work?" | Free text |
+| itsm_pm_2 | "Is there a clear line between standard requests (included) and enhancement work (billable/upsell)? Did the client understand this distinction this quarter?" | Free text |
+| itsm_pm_3 | "What proactive ITSM improvements or modernization opportunities were identified and presented to the client this quarter?" | Free text |
+| itsm_pm_4 | "Does the client have a documented, understood escalation path? Was it tested or used correctly if an escalation occurred this quarter?" | Free text |
+| itsm_pm_5 | "What did the team do this quarter to help the client better understand ITSM concepts relevant to their environment?" | Free text |
+| itsm_pm_6 | "How was the business value and risk of maintenance/change activities communicated to the client this quarter?" | Free text |
+
 ---
 
 ## TL Questions (8 steps total)
@@ -437,9 +460,18 @@ Reporting period is also auto-populated from project.quarter — not a step.
 | tl_q6 | "What risks, issues, or dependencies exist? For each: type, impact (High/Med/Low), owner, mitigation or next step." | Free text |
 | tl_q7 | "What should be the technical focus for next quarter? Include blockers, tech debt, and priorities." | Free text |
 
+### ITSM & Technical Maturity → S15
+| Key | Question | Input Type |
+|-----|----------|------------|
+| itsm_tl_1 | "Is the software/infrastructure inventory (CMDB or equivalent) current? Were any major gaps in dependency or EOL tracking found this quarter?" | Free text |
+| itsm_tl_2 | "What was the patch/vulnerability remediation cadence this quarter? Were there any overdue critical patches?" | Free text |
+| itsm_tl_3 | "What percentage of incidents this quarter were caught by automated monitoring vs. client-reported? What's the biggest manual-task automation opportunity right now?" | Free text |
+| itsm_tl_4 | "Were any recurring issues this quarter analyzed via root cause analysis? What prevention steps came out of it?" | Free text |
+| itsm_tl_5 | "Are the client's critical third-party/vendor dependencies inventoried with known failure-mode impact? Did any cause issues this quarter?" | Free text |
+
 ---
 
-## Report Structure (15 sections — do not change)
+## Report Structure (16 sections — do not change)
 
 ```
 S1  Executive Summary          → 4 prose paragraphs, inline status badge
@@ -460,7 +492,8 @@ S11 Cross-Analysis Summary     → findings tagged AGREE/DISAGREE/COMPLEMENT/BLI
 S12 Lessons Learned            → numbered list with context and action
 S13 Next Quarter Focus         → table (Focus Area | Expected Outcome | Owner)
 S14 Management Attention       → urgency cards (High/Medium/Low)
-S15 Closing Note               → grey box, professional tone
+S15 ITSM Maturity Summary      → AI-synthesised cross-analysis of PM+TL ITSM answers, tagged AGREE/DISAGREE/COMPLEMENT/BLIND_SPOT
+S16 Closing Note               → grey box, professional tone
 
 COVER PAGE
 → Full page background: assets/cover_bg.png (must be PNG)
@@ -529,7 +562,10 @@ FOOTER (all pages except cover):
         "explanation": "...", "urgency": "High|Medium|Low",
         "source": "Product Manager|Tech Lead|Product Manager, Tech Lead|Disagreement" }
     ],
-    "s15_closing_note": "..."
+    "s15_itsm_maturity": [
+      { "topic": "...", "pm_perspective": "...", "tl_perspective": "...", "finding": "...", "relationship": "AGREE|DISAGREE|COMPLEMENT|BLIND_SPOT" }
+    ],
+    "s16_closing_note": "..."
   }
 }
 ```
@@ -592,7 +628,8 @@ This is the source of truth — never deviate from this mapping.
 | S12: Lessons Learned | [lesson + context + action] | AI synthesis | Agent (S6, S7, S8 + disagreements) |
 | S13: Focus Area table | Focus Area / Expected Outcome / Owner | AI synthesis | Agent (pm_q1 + tl_q7) |
 | S14: Management Attention | Item / Type / Urgency / Source | AI synthesis | Agent (S8, S9 + disagreements) |
-| S15: Closing Note | [professional closing paragraph] | AI synthesis | Agent (S13) |
+| S15: ITSM Maturity Summary | [cross-analysis findings] | AI synthesis | Agent (itsm_pm_1–6 + itsm_tl_1–5) |
+| S16: Closing Note | [professional closing paragraph] | AI synthesis | Agent (S13) |
 
 **Parsing rules for free-text answers:**
 - pm_q3 → parsed into 5 fields: active_services, delivery_model, key_stakeholders, team_composition, reporting_cadence
@@ -679,6 +716,10 @@ SENDER_EMAIL=reviews@selise.ch
 
 # Email control
 SEND_EMAIL=False        # False in dev, True in production
+
+# Scheduler
+CRON_SECRET=            # shared secret between Vercel cron and the cron route
+ALLOW_DATE_SIMULATION=true  # dev only — never set in Vercel prod
 ```
 
 ---
@@ -739,13 +780,13 @@ service-delivery-intelligence/
 | 3 | Database — Supabase schema, migrations | ✅ |
 | 4 | Dashboard — project table, status chips, role-aware view | ✅ |
 | 5 | New Project — slide-in modal, assign PM/TL, create session | ✅ |
-| 6 | PM Questionnaire — 10 steps, all question types, auto-save, review summary, overwrite modal | ✅ |
-| 7 | TL Questionnaire — 8 steps, disagreement flagging, auto-save | ✅ |
-| 8 | AI Agent — Claude API, analysis.json, cross-analysis tags | ✅ |
-| 9 | PDF Generation — 14-section report + Value Delivered, cover page, all tables | ✅ |
+| 6 | PM Questionnaire — 11 steps, all question types, auto-save, review summary, overwrite modal | ✅ |
+| 7 | TL Questionnaire — 9 steps, disagreement flagging, auto-save | ✅ |
+| 8 | AI Agent — Claude API, analysis.json, cross-analysis tags, ITSM synthesis | ✅ |
+| 9 | PDF Generation — 16-section report + Value Delivered + ITSM Maturity, cover page, all tables | ✅ |
 | 10 | Report Preview — web view, section tags, sidebar nav, scroll-spy | ✅ |
-| 11 | Email — HTML body, Resend, manual send + scheduler | ⬜ |
-| 12 | Settings — cadence, send day, recipients, logo upload, live cover preview | ⬜ |
+| 11 | Email — HTML body, Resend, manual send + scheduler | ✅ |
+| 12 | Settings — cadence, send day, recipients, Vercel cron, date simulation | ✅ |
 | 13 | End-to-end test — full flow from signup to email received | ⬜ |
 
 ---
@@ -775,9 +816,9 @@ service-delivery-intelligence/
 ---
 
 ## Last Updated
-July 1, 2026 — Updated to reflect completed phases 1–10.
-PM questionnaire revised to 10 steps (prepared_by and reporting period auto-populated).
-TL questionnaire revised to 8 steps. Report expanded to 15 sections with S10 Value Delivered.
-analysis.json schema updated with s10_value_delivered and renumbered ai_generated keys (s11–s15).
-Build phases 1–10 marked complete. Known issues section added.
-Role selector removed from login page. PDF stored in Supabase Storage bucket "reports".
+July 2, 2026 — ITSM Maturity step added to both questionnaires.
+PM: 11 steps (Step 9 = ITSM & Service Maturity, Step 10 = Additional Notes, Step 11 = Review Summary).
+TL: 9 steps (Step 7 = ITSM & Technical Maturity, Step 8 = Next Quarter Focus, Step 9 = Review Summary).
+Report expanded to 16 sections: S15 = ITSM Maturity Summary (AI-synthesised), S16 = Closing Note (was S15).
+analysis.json: added s15_itsm_maturity, renamed s14_closing_note → s16_closing_note.
+DB migrations required: ALTER TABLE pm_answers ADD COLUMN itsm_pm_1..6 text; ALTER TABLE tl_answers ADD COLUMN itsm_tl_1..5 text.

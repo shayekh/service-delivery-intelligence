@@ -61,7 +61,10 @@ const SCHEMA_TEXT = `{
         "explanation": "...", "urgency": "High|Medium|Low",
         "source": "Product Manager|Tech Lead|Product Manager, Tech Lead|Disagreement" }
     ],
-    "s14_closing_note": "..."
+    "s15_itsm_maturity": [
+      { "topic": "...", "pm_perspective": "...", "tl_perspective": "...", "finding": "...", "relationship": "AGREE|DISAGREE|COMPLEMENT|BLIND_SPOT" }
+    ],
+    "s16_closing_note": "..."
   }
 }`;
 
@@ -83,7 +86,8 @@ You are given the Product Manager's (PM) and Tech Lead's (TL) independently subm
    - operational_value: process, support, stability, and operational improvements delivered this quarter
    - technical_value: architecture, performance, security, maintainability, and engineering quality improvements
    - strategic_value: long-term positioning, roadmap contribution, risk reduction, and strategic alignment achieved this quarter
-7. Output ONLY valid JSON matching the exact schema you are given — no markdown formatting, no code fences, no preamble or explanation text before or after the JSON.`;
+7. For s15_itsm_maturity, synthesise the PM's ITSM answers (itsm_pm_1–6) and the TL's ITSM answers (itsm_tl_1–5) into a list of cross-perspective findings. For each topic (e.g. SLA clarity, request boundary, escalation path, patch cadence, automation maturity, RCA discipline, dependency risk), produce an entry with pm_perspective, tl_perspective, finding, and relationship tag (AGREE/DISAGREE/COMPLEMENT/BLIND_SPOT). Omit topics where neither PM nor TL provided relevant input. If a topic was only addressed by one role, tag it as BLIND_SPOT.
+8. Output ONLY valid JSON matching the exact schema you are given — no markdown formatting, no code fences, no preamble or explanation text before or after the JSON.`;
 
 interface SourceAnswers {
   project: Project;
@@ -122,6 +126,21 @@ tl_q4 (support and incidents, JSON object {ticketCounts: [{category, count, summ
 tl_q5 (quality and delivery health, JSON array of {area, observation, status, improvement_action}): ${tl.tl_q5 ?? "(not answered)"}
 tl_q6 (risks, issues, dependencies, JSON array of {type, description, impact, owner, mitigation}): ${tl.tl_q6 ?? "(not answered)"}
 tl_q7 (next quarter technical focus): ${tl.tl_q7 ?? "(not answered)"}
+
+## PM ITSM Answers
+itsm_pm_1 (SLA/SLO review with client, standard vs. billable clarity): ${pm.itsm_pm_1 ?? "(not answered)"}
+itsm_pm_2 (request boundary — standard vs. enhancement/upsell distinction): ${pm.itsm_pm_2 ?? "(not answered)"}
+itsm_pm_3 (proactive ITSM improvements presented to client): ${pm.itsm_pm_3 ?? "(not answered)"}
+itsm_pm_4 (escalation path documentation and usage): ${pm.itsm_pm_4 ?? "(not answered)"}
+itsm_pm_5 (client ITSM education activities): ${pm.itsm_pm_5 ?? "(not answered)"}
+itsm_pm_6 (change/maintenance communication to client): ${pm.itsm_pm_6 ?? "(not answered)"}
+
+## TL ITSM Answers
+itsm_tl_1 (CMDB/inventory currency, EOL tracking gaps): ${tl.itsm_tl_1 ?? "(not answered)"}
+itsm_tl_2 (patch/vulnerability remediation cadence, overdue patches): ${tl.itsm_tl_2 ?? "(not answered)"}
+itsm_tl_3 (automated vs. client-reported incident detection, automation opportunities): ${tl.itsm_tl_3 ?? "(not answered)"}
+itsm_tl_4 (RCA on recurring issues, prevention steps): ${tl.itsm_tl_4 ?? "(not answered)"}
+itsm_tl_5 (third-party/vendor dependency inventory and failure-mode risk): ${tl.itsm_tl_5 ?? "(not answered)"}
 
 ## Output Schema
 Respond with ONLY a JSON object matching this exact shape (field names and nesting must match exactly):

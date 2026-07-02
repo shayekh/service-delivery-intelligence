@@ -20,7 +20,7 @@ import {
 } from "@/app/projects/[id]/pm/actions";
 import type { PmAnswers, Project, StatusColor, User } from "@/types";
 
-const TOTAL_STEPS = 10;
+const TOTAL_STEPS = 11;
 type ChoiceValue = StatusColor | "";
 
 function parseWorkstreams(raw: string | null): WorkstreamRow[] {
@@ -288,6 +288,12 @@ export function PmQuestionnaireClient({
   );
   const [pmQ8, setPmQ8] = useState<ChoiceValue>(initialAnswers?.pm_q8 ?? "");
   const [pmQ8Notes, setPmQ8Notes] = useState(initialAnswers?.pm_q8_notes ?? "");
+  const [itsmPm1, setItsmPm1] = useState(initialAnswers?.itsm_pm_1 ?? "");
+  const [itsmPm2, setItsmPm2] = useState(initialAnswers?.itsm_pm_2 ?? "");
+  const [itsmPm3, setItsmPm3] = useState(initialAnswers?.itsm_pm_3 ?? "");
+  const [itsmPm4, setItsmPm4] = useState(initialAnswers?.itsm_pm_4 ?? "");
+  const [itsmPm5, setItsmPm5] = useState(initialAnswers?.itsm_pm_5 ?? "");
+  const [itsmPm6, setItsmPm6] = useState(initialAnswers?.itsm_pm_6 ?? "");
   const [notes, setNotes] = useState(initialAnswers?.pm_q_notes ?? "");
 
   function buildPayload(): Omit<PmAnswers, "id"> {
@@ -306,6 +312,12 @@ export function PmQuestionnaireClient({
       pm_q8_notes: pmQ8Notes,
       reporting_period: project.quarter,
       pm_q_notes: notes,
+      itsm_pm_1: itsmPm1,
+      itsm_pm_2: itsmPm2,
+      itsm_pm_3: itsmPm3,
+      itsm_pm_4: itsmPm4,
+      itsm_pm_5: itsmPm5,
+      itsm_pm_6: itsmPm6,
       submitted_by: currentUserId,
       submitted_at: initialAnswers?.submitted_at ?? null,
     };
@@ -381,7 +393,8 @@ export function PmQuestionnaireClient({
     { step: 6, label: "Service Metrics", preview: `${metrics.length} rows entered` },
     { step: 7, label: "Customer Feedback", preview: "5 sections entered" },
     { step: 8, label: "Relationship Health", preview: choiceBadge(pmQ8) },
-    { step: 9, label: "Additional Notes", preview: preview(notes) },
+    { step: 9, label: "ITSM & Service Maturity", preview: itsmPm1 ? "Answered" : "—" },
+    { step: 10, label: "Additional Notes", preview: preview(notes) },
   ];
 
   if (isSubmitting) {
@@ -588,9 +601,59 @@ export function PmQuestionnaireClient({
       {currentStep === 9 && (
         <QuestionStep
           stepNumber={9}
+          sectionLabel="ITSM & Service Maturity"
+          question="ITSM & Service Maturity"
+          helper="Answer each question with as much detail as needed. All fields are optional but help generate richer insights."
+          footer={footer}
+        >
+          <div className="space-y-6">
+            <AnswerTextarea
+              value={itsmPm1}
+              onChange={setItsmPm1}
+              placeholder="Were SLAs/SLOs reviewed with the client this quarter, and did they clearly understand what's covered under standard support vs. billable work?"
+              minHeightClass="min-h-24"
+            />
+            <AnswerTextarea
+              value={itsmPm2}
+              onChange={setItsmPm2}
+              placeholder="Is there a clear line between standard requests (included) and enhancement work (billable/upsell)? Did the client understand this distinction this quarter?"
+              minHeightClass="min-h-24"
+            />
+            <AnswerTextarea
+              value={itsmPm3}
+              onChange={setItsmPm3}
+              placeholder="What proactive ITSM improvements or modernization opportunities were identified and presented to the client this quarter?"
+              minHeightClass="min-h-24"
+            />
+            <AnswerTextarea
+              value={itsmPm4}
+              onChange={setItsmPm4}
+              placeholder="Does the client have a documented, understood escalation path? Was it tested or used correctly if an escalation occurred this quarter?"
+              minHeightClass="min-h-24"
+            />
+            <AnswerTextarea
+              value={itsmPm5}
+              onChange={setItsmPm5}
+              placeholder="What did the team do this quarter to help the client better understand ITSM concepts relevant to their environment?"
+              minHeightClass="min-h-24"
+            />
+            <AnswerTextarea
+              value={itsmPm6}
+              onChange={setItsmPm6}
+              placeholder="How was the business value and risk of maintenance/change activities communicated to the client this quarter?"
+              minHeightClass="min-h-24"
+            />
+          </div>
+        </QuestionStep>
+      )}
+
+      {currentStep === 10 && (
+        <QuestionStep
+          stepNumber={10}
           sectionLabel="Additional Notes"
           question="Any additional context or notes for this review?"
-          helper="Optional — add any caveats, background, or context that doesn't fit elsewhere."          footer={footer}
+          helper="Optional — add any caveats, background, or context that doesn't fit elsewhere."
+          footer={footer}
         >
           <AnswerTextarea
             value={notes}
@@ -601,9 +664,9 @@ export function PmQuestionnaireClient({
         </QuestionStep>
       )}
 
-      {currentStep === 10 && (
+      {currentStep === 11 && (
         <QuestionStep
-          stepNumber={10}
+          stepNumber={11}
           sectionLabel="Final Review"
           kind="summary"
           question="Review your answers before submitting."

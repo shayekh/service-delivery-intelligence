@@ -29,7 +29,7 @@ import {
 } from "@/app/projects/[id]/tl/actions";
 import type { PmAnswers, Project, StatusColor, TlAnswers, User } from "@/types";
 
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 9;
 type ChoiceValue = StatusColor | "";
 
 interface TlQ4Data {
@@ -276,6 +276,11 @@ export function TlQuestionnaireClient({
   const [risks, setRisks] = useState<RiskRow[]>(
     parseRisks(initialAnswers?.tl_q6 ?? null)
   );
+  const [itsmTl1, setItsmTl1] = useState(initialAnswers?.itsm_tl_1 ?? "");
+  const [itsmTl2, setItsmTl2] = useState(initialAnswers?.itsm_tl_2 ?? "");
+  const [itsmTl3, setItsmTl3] = useState(initialAnswers?.itsm_tl_3 ?? "");
+  const [itsmTl4, setItsmTl4] = useState(initialAnswers?.itsm_tl_4 ?? "");
+  const [itsmTl5, setItsmTl5] = useState(initialAnswers?.itsm_tl_5 ?? "");
   const [tlQ7, setTlQ7] = useState(initialAnswers?.tl_q7 ?? "");
 
   const pmHasSubmitted = !!pmAnswers?.submitted_at;
@@ -292,6 +297,11 @@ export function TlQuestionnaireClient({
       tl_q4: JSON.stringify({ ticketCounts, majorIncidents }),
       tl_q5: JSON.stringify(qualityHealth),
       tl_q6: JSON.stringify(risks),
+      itsm_tl_1: itsmTl1,
+      itsm_tl_2: itsmTl2,
+      itsm_tl_3: itsmTl3,
+      itsm_tl_4: itsmTl4,
+      itsm_tl_5: itsmTl5,
       tl_q7: tlQ7,
       submitted_by: currentUserId,
       submitted_at: initialAnswers?.submitted_at ?? null,
@@ -368,7 +378,8 @@ export function TlQuestionnaireClient({
     },
     { step: 5, label: "Quality & Health", preview: `${qualityHealth.length} rows entered` },
     { step: 6, label: "Risks & Issues", preview: `${risks.length} rows entered` },
-    { step: 7, label: "Next Quarter Focus", preview: preview(tlQ7) },
+    { step: 7, label: "ITSM & Technical Maturity", preview: itsmTl1 ? "Answered" : "—" },
+    { step: 8, label: "Next Quarter Focus", preview: preview(tlQ7) },
   ];
 
   if (isSubmitting) {
@@ -553,6 +564,49 @@ export function TlQuestionnaireClient({
       {currentStep === 7 && (
         <QuestionStep
           stepNumber={7}
+          sectionLabel="ITSM & Technical Maturity"
+          question="ITSM & Technical Maturity"
+          helper="Answer each question with as much detail as needed. All fields are optional but help generate richer insights."
+          footer={footer}
+        >
+          <div className="space-y-6">
+            <AnswerTextarea
+              value={itsmTl1}
+              onChange={setItsmTl1}
+              placeholder="Is the software/infrastructure inventory (CMDB or equivalent) current? Were any major gaps in dependency or EOL tracking found this quarter?"
+              minHeightClass="min-h-24"
+            />
+            <AnswerTextarea
+              value={itsmTl2}
+              onChange={setItsmTl2}
+              placeholder="What was the patch/vulnerability remediation cadence this quarter? Were there any overdue critical patches?"
+              minHeightClass="min-h-24"
+            />
+            <AnswerTextarea
+              value={itsmTl3}
+              onChange={setItsmTl3}
+              placeholder="What percentage of incidents this quarter were caught by automated monitoring vs. client-reported? What's the biggest manual-task automation opportunity right now?"
+              minHeightClass="min-h-24"
+            />
+            <AnswerTextarea
+              value={itsmTl4}
+              onChange={setItsmTl4}
+              placeholder="Were any recurring issues this quarter analyzed via root cause analysis? What prevention steps came out of it?"
+              minHeightClass="min-h-24"
+            />
+            <AnswerTextarea
+              value={itsmTl5}
+              onChange={setItsmTl5}
+              placeholder="Are the client's critical third-party/vendor dependencies inventoried with known failure-mode impact? Did any cause issues this quarter?"
+              minHeightClass="min-h-24"
+            />
+          </div>
+        </QuestionStep>
+      )}
+
+      {currentStep === 8 && (
+        <QuestionStep
+          stepNumber={8}
           sectionLabel="Next Quarter Focus"
           question="What should be the technical focus for next quarter?"
           helper="Include blockers to resolve, tech debt to address, and engineering priorities."
@@ -567,9 +621,9 @@ export function TlQuestionnaireClient({
         </QuestionStep>
       )}
 
-      {currentStep === 8 && (
+      {currentStep === 9 && (
         <QuestionStep
-          stepNumber={8}
+          stepNumber={9}
           sectionLabel="Review Summary"
           kind="summary"
           question="Review your answers before submitting."
