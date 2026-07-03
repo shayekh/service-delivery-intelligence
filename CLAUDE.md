@@ -34,7 +34,7 @@ is carried over exactly from the terminal version.
 | Database | Supabase (PostgreSQL) |
 | Auth | Supabase Auth |
 | UI Components | Shadcn/ui + Tailwind CSS |
-| AI | Anthropic Claude API (claude-sonnet-4-6) |
+| AI | Anthropic Claude API — `CLAUDE_MODEL = "claude-sonnet-4-6"` (in `src/lib/agent.ts`). Claude Sonnet 5 is available and confirmed as a drop-in replacement (`claude-sonnet-5`) if upgraded later — requires bumping `max_tokens` (new tokenizer produces ~30% more tokens for the same text) and confirming no `temperature`/`top_p`/`top_k`/manual `thinking.budget_tokens` params are set (all now return 400 on Sonnet 5). Currently staying on 4.6. |
 | PDF Generation | pdf-lib |
 | Email | Resend |
 | Hosting | Vercel |
@@ -123,11 +123,18 @@ PDF GENERATION (triggers after agent)
 → project status: "Ready"
 
 EMAIL
-→ Monthly → sends on configured day of month (e.g. 5th)
-→ Quarterly → sends March / June / September / December
-→ PM can trigger manual send from report preview page
+→ Scheduler (Vercel Cron, daily) checks settings.delivery_cadence + send_on_day
+  → Monthly: sends every month on the configured day
+  → Quarterly: sends on the configured day in Jan/Apr/Jul/Oct
+  → On a matching day, sweeps ALL projects currently status='ready' and emails
+    them to settings.recipient_emails (global distribution list)
+  → Only the scheduler sets status: 'sent' and email_sent_at
+→ Manual send (PM or TL, from report preview page) → sends to project.recipient_emails
+  (project-specific stakeholders) → sets manual_email_sent_at only, does NOT
+  change status or email_sent_at — status stays 'ready' until the scheduler
+  actually sends it. This keeps the scheduler's WHERE status='ready' query
+  reliable regardless of how many times a project has been manually sent.
 → HTML email + PDF attachment via Resend
-→ project status: "Sent"
 ```
 
 ### Status Logic
@@ -137,7 +144,8 @@ EMAIL
   - Neither submitted → `not_started`
   - PM submitted only → `awaiting_tl`
   - TL submitted only → `awaiting_pm`
-  - Both submitted → `processing` → AI triggers automatically → `ready` → `sent`
+  - Both submitted → `processing` → AI triggers automatically → `ready` → `sent` (scheduler only)
+- **`status` is exclusively controlled by the scheduler.** Manual send never changes it.
 
 ---
 
@@ -162,7 +170,7 @@ quarter           text        -- 'Q1 2026' | 'Q2 2026' | 'Q3 2026' | 'Q4 2026'
 start_date        date        -- auto set on creation
 assigned_pm       uuid references users
 assigned_tl       uuid references users
-recipient_emails  text[]
+recipient_emails  text[]      -- project-specific stakeholders, used by manual send
 status            text        -- 'awaiting_pm' | 'awaiting_tl' | 'processing' | 'generating_pdf' | 'ready' | 'sent'
 pdf_url                text
 email_sent_at          timestamp   -- set by scheduler only
@@ -226,12 +234,13 @@ generated_at  timestamp
 ```sql
 id                  uuid primary key
 organisation_name   text        -- 'SELISE Digital Platforms'
-organisation_logo   text        -- Supabase Storage URL
+organisation_logo   text        -- Supabase Storage URL (column exists; branding UI not built — see Known Issues)
 delivery_cadence    text        -- 'monthly' | 'quarterly'
-send_on_day         integer     -- day of month (e.g. 5)
-recipient_emails    text[]
+send_on_day         integer     -- day of month (e.g. 5), capped 1-28
+recipient_emails    text[]      -- global distribution list, used by scheduler only
 updated_at          timestamp
 ```
+**Note:** actual column names are `delivery_cadence`, `send_on_day`, `recipient_emails` — NOT `schedule_cadence`/`send_day`/`distribution_emails`. This mismatch caused real bugs earlier (see Known Issues / Resolved). Always verify against live schema before writing queries.
 
 ### customer_logos
 ```sql
@@ -253,9 +262,12 @@ uploaded_at     timestamp
 | `/signup` | Signup page | Unauthenticated |
 | `/dashboard` | All projects + status table | PM, TL |
 | `/projects/[id]` | Project detail + report preview + send email | PM, TL |
-| `/projects/[id]/pm` | PM questionnaire (10 steps) | PM only |
-| `/projects/[id]/tl` | TL questionnaire (8 steps) | TL only |
-| `/settings` | Schedule, branding, email recipients, logo upload | PM, TL |
+| `/projects/[id]/pm` | PM questionnaire (11 steps) | PM only (own draft/answers) |
+| `/projects/[id]/tl` | TL questionnaire (9 steps) | TL only (own draft/answers) |
+| `/settings` | Schedule (cadence, send day), distribution list | Any authenticated user (PM, TL) |
+| `/api/cron/scheduled-send` | Scheduler endpoint (Vercel Cron, daily) | `CRON_SECRET` bearer auth only — NOT session-based; excluded from middleware |
+
+**Middleware note:** `middleware.ts`'s matcher excludes `api|` from its negative lookahead — ALL `/api/*` routes bypass session-auth middleware and handle their own auth internally (session-based via `createServerSupabaseClient()` for most routes, or `CRON_SECRET` for the cron route). This was a real bug — see Known Issues / Resolved.
 
 ---
 
@@ -289,14 +301,14 @@ uploaded_at     timestamp
   - Amber "Awaiting Tech Lead" → PM submitted, TL pending
   - Amber "Awaiting PM" → TL submitted, PM pending
   - Purple "Processing" → both submitted, AI/PDF generating
-  - Green "Report ready" → report available
-  - Blue "Report sent" → email delivered
+  - Green "Report ready" → report available (PDF exists, may or may not have been manually sent — see "✓ manually sent" sub-indicator)
+  - Blue "Report sent" → scheduler has sent it (status only flips here via scheduler)
+- Secondary indicator: "✓ manually sent" shown below "Report ready" chip when `manual_email_sent_at` is set but `status` is still `ready`
 - Action button rules (role-aware):
   - Only the assigned PM/TL for a project gets an action button for their own section
   - Other users see nothing in the Action column unless the report is ready/sent
-  - "Fill your section" → shown to the assigned user who hasn't submitted yet
-  - "View progress" → shown to the assigned user who has submitted, waiting on the other role
-  - "View Report" → shown to everyone once both have submitted
+  - Single consolidated action button per row (no separate edit pencil icon) — label is state-aware: "Fill your section" (not started) / "Continue" (draft exists, not submitted) / "View progress" (submitted, waiting on other role) / "View Report" (both submitted)
+  - Delete icon: visible only when (a) neither PM nor TL has submitted yet, AND (b) the current user is `assigned_pm` or `assigned_tl` for that specific project — re-verified server-side on every delete request, not just client-side
 - Left sidebar: Projects | Settings | Logout
 
 ### 4. New Project (right-side slide-in modal)
@@ -308,7 +320,7 @@ uploaded_at     timestamp
   - Quarter: Q1 | Q2 | Q3 | Q4 selector + Year
   - Assign PM: dropdown of registered PMs
   - Assign TL: dropdown of registered TLs
-  - Recipient Emails: tag-style email input
+  - Recipient Emails: tag-style email input (project-specific stakeholders, used by manual send)
 - Buttons: Cancel | Create Project (primary blue)
 
 ### 5. PM Questionnaire (11 steps)
@@ -321,7 +333,7 @@ uploaded_at     timestamp
 - Reporting period is auto-populated from project.quarter — not a questionnaire step
 - Steps: Delivery Focus, Delivery Status, Service Overview, Key Achievements,
   Workstream Status, Service Metrics, Customer Feedback, Relationship Health,
-  ITSM & Service Maturity, Additional Notes, Review Summary
+  **ITSM & Service Maturity**, Additional Notes, Review Summary
 - Step 11: Review Summary
   - "Review your answers before submitting"
   - Lists each answer with Edit link
@@ -333,12 +345,13 @@ uploaded_at     timestamp
     Editing will replace your previous answers and may require the Tech Lead
     to review again."
   - Cancel | Overwrite buttons
+- Resume/edit access: only the assigned PM can resume/edit their own unsubmitted draft; access is via the same consolidated dashboard action button ("Continue"), not a separate icon
 
 ### 6. TL Questionnaire (9 steps)
 - Header: "Tech Lead Review" title
 - Same step-by-step UX as PM
 - Steps: Technical Delivery Focus, Delivery Status, Technical Achievements,
-  Support & Incidents, Quality & Health, Risks & Issues, ITSM & Technical Maturity,
+  Support & Incidents, Quality & Health, Risks & Issues, **ITSM & Technical Maturity**,
   Next Quarter Focus, Review Summary
 - Status question (tl_q2): shows PM's answer above TL's choice for comparison
   - If they differ → inline warning:
@@ -376,32 +389,53 @@ uploaded_at     timestamp
 - Character count shown
 - Auto-saved on blur
 
-### 8. Report Preview Page
+**ITSM step questions** — free text, same styling as other free-text steps, no special question type
+
+### 8. Report Preview Page (web) — VERIFIED against `page.tsx` and `ReportSidebar.tsx`
 - Header: Customer name (bold) | Quarter badge | Prepared by: [PM name], [TL name]
-- Top right: Download PDF button + Send Report button (primary)
-- Left sidebar navigation to all sections with scroll-spy active highlighting
+- Top right: Download PDF button + Send Report button (primary; label is "Send Report" or "Resend Report" based on `manual_email_sent_at`, shows "Last sent manually on [date]" hint — independent of `status`)
+- Left sidebar navigation to all sections with scroll-spy active highlighting, plain sequential numbering (no "S" prefix in UI)
 - Each section tagged: "PM Submitted" (blue) | "TL Submitted" (blue) | "AI Synthesised" (purple)
-- S11 Cross-Analysis: each finding tagged:
-  COMPLEMENT (green) | AGREE (blue) | BLIND SPOT (amber) | DISAGREE (red)
-- S14 Management Attention: cards with title + description + urgency
-- S15 ITSM Maturity Summary: cross-analysis findings with PM/TL perspective panels
-- S16 Closing Note: grey/blue highlighted box
+- **Web report preview uses 18 sections** (more granular than the 16-section PDF — see note below):
+  ```
+  From Submission (11):
+  01 Executive Summary          — ExecutiveSummary, data: ss.s1_executive_summary
+  02 Service Overview           — ServiceOverview, data: ss.s2_service_overview
+  03 Delivery Status            — DeliveryStatusSection, data: ss.s1_executive_summary (reused)
+  04 Health Rating              — HealthRating, data: report_meta (reused)
+  05 Key Achievements           — KeyAchievements, data: ss.s3_achievements
+  06 Delivery Summary           — DeliverySummaryTable, data: ss.s4_delivery_summary
+  07 Service Metrics            — ReportMetricsTable, data: ss.s5_metrics
+  08 Support & Incidents        — SupportIncidents, data: ss.s6_support_summary
+  09 Quality & Health           — ReportQualityHealthTable, data: ss.s7_quality_health
+  10 Risks & Dependencies       — RisksTable, data: ss.s8_risks
+  11 Customer Feedback          — CustomerFeedbackSection, data: ss.s9_customer_feedback
+
+  AI Synthesised (7):
+  12 Value Delivered            — ValueDelivered, data: ai.s10_value_delivered
+  13 Cross-Analysis Summary     — CrossAnalysisSummary, data: ai.s10_cross_analysis
+  14 Lessons Learned            — LessonsLearnedList, data: ai.s11_lessons_learned
+  15 Next Quarter Focus         — NextQuarterFocusTable, data: ai.s12_next_quarter_focus
+  16 ITSM Maturity Summary      — ItsmMaturitySection, data: ai.s15_itsm_maturity
+     (tag + topic + finding text only in UI — NO PM/TL perspective panels shown;
+     pm_perspective/tl_perspective fields still generated by AI and stored in
+     analysis_results, just not rendered)
+  17 Management Attention       — ManagementAttentionCards, data: ai.s13_management_attention
+  18 Closing Note               — ClosingNoteCard, data: ai.s16_closing_note
+  ```
+- **Render order in `page.tsx` is confirmed correct**: ITSM Maturity (16) renders before Management Attention (17) — matches intent (topic flows into what needs attention next).
+- **Web (18 sections) vs. PDF (16 sections) — intentionally different, not a bug.** The web page splits "Delivery Status" and "Health Rating" into their own standalone sections (03, 04) for scannable navigation, while the PDF folds this same underlying data (`s1_executive_summary`, `report_meta`) into inline badges within Executive Summary (S1) and Customer Feedback (S9) respectively, favoring compactness. Both pull from identical data — only display granularity differs. This was verified by reading `page.tsx`, `ReportSidebar.tsx`, and `pdf.ts` side by side; confirm this divergence remains intentional if either file is touched again.
 
 ### 9. Settings Page
-- Subtitle: "Report delivery schedule and branding for SELISE Digital Platforms"
-- Left panel — Schedule:
-  - Delivery Cadence toggle: Monthly | Quarterly
-  - Send on day of month dropdown (1st–31st)
-  - Email Recipients: tag-style list with + Add button and × to remove
-- Right panel — Branding:
-  - Organisation Logo: "SELISE" — used on all reports
-  - Customer Logo: Upload button (per customer, stored in Supabase Storage)
-  - Live Cover Page Preview: real-time mini render of PDF cover
-    Caption: "Live preview of the generated PDF cover page"
+- Subtitle: "Report delivery schedule and distribution list for SELISE Digital Platforms"
+- Two sections, each with independent Save button:
+  - **Schedule**: Delivery Cadence toggle (Monthly | Quarterly), Send on Day of Month (1–28), helper text explaining quarterly = Jan/Apr/Jul/Oct
+  - **Distribution List**: chip-based email list (Enter/comma to add, × to remove, dupe/format validation) — labeled "Recipients for scheduled reports", subtext clarifies this is separate from each project's individual stakeholders
+- **Branding is NOT built** — no logo upload, no cover page preview, explicitly descoped from Phase 12. `organisation_logo` column exists in DB but has no UI.
 
 ---
 
-## PM Questions (10 steps total)
+## PM Questions (11 steps total)
 
 `prepared_by` is not a questionnaire step — it's auto-populated from the
 logged-in PM's `full_name` + role (e.g. "John Smith, Product Manager").
@@ -427,7 +461,7 @@ Reporting period is also auto-populated from project.quarter — not a step.
 | pm_q7 | "How was the customer relationship? Cover satisfaction, communication, responsiveness, business alignment, areas of concern." | Free text |
 | pm_q8 | "Overall relationship health?" | Choice: Green / Amber / Red |
 
-### ITSM & Service Maturity → S15
+### ITSM & Service Maturity → S15 (display position 15, internal key `s15_itsm_maturity`)
 | Key | Question | Input Type |
 |-----|----------|------------|
 | itsm_pm_1 | "Were SLAs/SLOs reviewed with the client this quarter, and did they clearly understand what's covered under standard support vs. billable work?" | Free text |
@@ -437,9 +471,12 @@ Reporting period is also auto-populated from project.quarter — not a step.
 | itsm_pm_5 | "What did the team do this quarter to help the client better understand ITSM concepts relevant to their environment?" | Free text |
 | itsm_pm_6 | "How was the business value and risk of maintenance/change activities communicated to the client this quarter?" | Free text |
 
+### Additional Notes (Step 10)
+Free text — open notes field, no fixed report mapping.
+
 ---
 
-## TL Questions (8 steps total)
+## TL Questions (9 steps total)
 
 ### Delivery & Achievements → S1, S3, S4
 | Key | Question | Input Type |
@@ -454,13 +491,12 @@ Reporting period is also auto-populated from project.quarter — not a step.
 | tl_q4 | "What were the support and incident numbers? Cover total, resolved, open, critical/major incidents — for major ones include date, issue, root cause, action, status." | Numeric + expandable |
 | tl_q5 | "How was overall quality and delivery health? Cover code quality, QA, release management, documentation, communication, team stability." | Free text |
 
-### Risks & Next Quarter → S8, S12
+### Risks → S8
 | Key | Question | Input Type |
 |-----|----------|------------|
 | tl_q6 | "What risks, issues, or dependencies exist? For each: type, impact (High/Med/Low), owner, mitigation or next step." | Free text |
-| tl_q7 | "What should be the technical focus for next quarter? Include blockers, tech debt, and priorities." | Free text |
 
-### ITSM & Technical Maturity → S15
+### ITSM & Technical Maturity → S15 (display position 15, internal key `s15_itsm_maturity`)
 | Key | Question | Input Type |
 |-----|----------|------------|
 | itsm_tl_1 | "Is the software/infrastructure inventory (CMDB or equivalent) current? Were any major gaps in dependency or EOL tracking found this quarter?" | Free text |
@@ -469,9 +505,16 @@ Reporting period is also auto-populated from project.quarter — not a step.
 | itsm_tl_4 | "Were any recurring issues this quarter analyzed via root cause analysis? What prevention steps came out of it?" | Free text |
 | itsm_tl_5 | "Are the client's critical third-party/vendor dependencies inventoried with known failure-mode impact? Did any cause issues this quarter?" | Free text |
 
+### Next Quarter Focus → S13
+| Key | Question | Input Type |
+|-----|----------|------------|
+| tl_q7 | "What should be the technical focus for next quarter? Include blockers, tech debt, and priorities." | Free text |
+
 ---
 
-## Report Structure (16 sections — do not change)
+## Report Structure — PDF (16 sections) — VERIFIED against `pdf.ts`
+
+PDF section headers use plain "S" + number labels via `drawSectionHeader()`. **The printed label number and the underlying `analysis.json` key name do NOT match numerically** (leftover from before ITSM was inserted) — cosmetic only, not a functional bug, since `pdf.ts` reads the correct property regardless of the label string printed. Confirmed end-to-end: `agent.ts` generates these exact key names and `pdf.ts` reads the same exact key names — no mismatch in actual data flow.
 
 ```
 S1  Executive Summary          → 4 prose paragraphs, inline status badge
@@ -485,21 +528,30 @@ S8  Risks, Issues & Dependencies → 5-col table
 S9  Customer Feedback           → 2-col table + inline relationship health badge
 
 ── AI GENERATED ─────────────────────────────────────────────
+                                    printed label → actual analysis.json key read
+S10 Value Delivered             → "10" → ai.s10_value_delivered       [matches]
+S11 Cross-Analysis Summary      → "11" → ai.s10_cross_analysis        [key says s10]
+S12 Lessons Learned             → "12" → ai.s11_lessons_learned       [key says s11]
+S13 Next Quarter Focus          → "13" → ai.s12_next_quarter_focus    [key says s12]
+S14 ITSM Maturity Summary       → "14" → ai.s15_itsm_maturity         [key says s15]
+S15 Management Attention        → "15" → ai.s13_management_attention [key says s13]
+S16 Closing Note                → "16" → ai.s16_closing_note          [matches]
+```
 
-S10 Value Delivered            → 4 paragraphs: Business Value, Operational Value,
-                                  Technical Value, Strategic Value
-S11 Cross-Analysis Summary     → findings tagged AGREE/DISAGREE/COMPLEMENT/BLIND_SPOT
-S12 Lessons Learned            → numbered list with context and action
-S13 Next Quarter Focus         → table (Focus Area | Expected Outcome | Owner)
-S14 Management Attention       → urgency cards (High/Medium/Low)
-S15 ITSM Maturity Summary      → AI-synthesised cross-analysis of PM+TL ITSM answers, tagged AGREE/DISAGREE/COMPLEMENT/BLIND_SPOT
-S16 Closing Note               → grey box, professional tone
+**PDF order confirmed correct**: ITSM Maturity (labeled S14) prints before Management Attention (labeled S15) — matches intent.
 
+**Cleanup opportunity (cosmetic, low priority):** `ai_generated` key names don't reflect either their PDF label or web display numbers. Renaming them for self-consistency would require touching the Claude API prompt schema in `agent.ts` plus every reader (`pdf.ts`, `page.tsx`) — not urgent since everything works correctly today, just confusing to read.
+
+## Report Structure — Web Preview (18 sections)
+
+See "Report Preview Page" under UI Screens above for the full verified 18-section breakdown. Web and PDF intentionally differ in granularity (web splits Delivery Status and Health Rating into standalone sections; PDF folds them into inline badges) — both read from the same underlying data.
+
+```
 COVER PAGE
 → Full page background: assets/cover_bg.png (must be PNG)
 → SELISE logo top right — cover page only
 → Dark banner bottom 25%: Customer Name | Reporting Period | Date
-→ Customer logo bottom right (Supabase Storage) — optional
+→ Customer logo bottom right (Supabase Storage) — optional, hidden if not uploaded
 
 FOOTER (all pages except cover):
 [Customer Name] — [Reporting Period] | Page X | Generated by Service Delivery Intelligence
@@ -550,14 +602,14 @@ FOOTER (all pages except cover):
       "technical_value": "...",
       "strategic_value": "..."
     },
-    "s11_cross_analysis": [
+    "s10_cross_analysis": [
       { "topic": "...", "relationship": "AGREE|DISAGREE|COMPLEMENT|BLIND_SPOT", "finding": "..." }
     ],
-    "s12_lessons_learned": [{ "lesson": "...", "context": "...", "action": "..." }],
-    "s13_next_quarter_focus": [
+    "s11_lessons_learned": [{ "lesson": "...", "context": "...", "action": "..." }],
+    "s12_next_quarter_focus": [
       { "focus_area": "...", "expected_outcome": "...", "owner": "Product Manager|Tech Lead|Product Manager, Tech Lead" }
     ],
-    "s14_management_attention": [
+    "s13_management_attention": [
       { "item": "...", "type": "Decision|Approval|Budget|Resource|Escalation|Misalignment",
         "explanation": "...", "urgency": "High|Medium|Low",
         "source": "Product Manager|Tech Lead|Product Manager, Tech Lead|Disagreement" }
@@ -569,12 +621,13 @@ FOOTER (all pages except cover):
   }
 }
 ```
+**Note:** VERIFIED actual key names from `agent.ts`'s Claude API schema, confirmed to exactly match what `pdf.ts` and `page.tsx` read. `s10_value_delivered` and `s10_cross_analysis` both use the `s10` prefix for two different fields — unusual but functionally fine since they're distinct object keys. There is no `s14_*` key; numbering jumps from `s13_management_attention` to `s15_itsm_maturity`. Key names do not correspond to PDF label numbers or web display numbers — see Report Structure sections above for the real mapping.
 
 ---
 
 ## Report → Question Mapping
 
-Every placeholder in the 15-section report is filled by a specific question or AI synthesis.
+Every placeholder in the 16-section report is filled by a specific question or AI synthesis.
 This is the source of truth — never deviate from this mapping.
 
 | Report Section | Placeholder | Filled By | Source |
@@ -620,16 +673,18 @@ This is the source of truth — never deviate from this mapping.
 | S9: Business Alignment | [Feedback] | pm_q7 parsed | PM |
 | S9: Areas of Concern | [Feedback] | pm_q7 parsed | PM |
 | S9: Relationship health badge | [Green / Amber / Red] | pm_q8 | PM |
-| S10: Business Value | [paragraph] | AI synthesis | Agent (S3, S5, S9) |
-| S10: Operational Value | [paragraph] | AI synthesis | Agent (S6, S7) |
-| S10: Technical Value | [paragraph] | AI synthesis | Agent (S3, S7) |
-| S10: Strategic Value | [paragraph] | AI synthesis | Agent (S8, S13) |
-| S11: Cross-Analysis | [findings tagged AGREE/DISAGREE/COMPLEMENT/BLIND_SPOT] | AI synthesis | Agent (all questions) |
-| S12: Lessons Learned | [lesson + context + action] | AI synthesis | Agent (S6, S7, S8 + disagreements) |
-| S13: Focus Area table | Focus Area / Expected Outcome / Owner | AI synthesis | Agent (pm_q1 + tl_q7) |
-| S14: Management Attention | Item / Type / Urgency / Source | AI synthesis | Agent (S8, S9 + disagreements) |
-| S15: ITSM Maturity Summary | [cross-analysis findings] | AI synthesis | Agent (itsm_pm_1–6 + itsm_tl_1–5) |
-| S16: Closing Note | [professional closing paragraph] | AI synthesis | Agent (S13) |
+| S10: Business Value | [paragraph] | `ai.s10_value_delivered.business_value` | Agent (S3, S5, S9) |
+| S10: Operational Value | [paragraph] | `ai.s10_value_delivered.operational_value` | Agent (S6, S7) |
+| S10: Technical Value | [paragraph] | `ai.s10_value_delivered.technical_value` | Agent (S3, S7) |
+| S10: Strategic Value | [paragraph] | `ai.s10_value_delivered.strategic_value` | Agent (S8, S13) |
+| S11: Cross-Analysis | [findings tagged AGREE/DISAGREE/COMPLEMENT/BLIND_SPOT] | `ai.s10_cross_analysis` | Agent (all questions) |
+| S12: Lessons Learned | [lesson + context + action] | `ai.s11_lessons_learned` | Agent (S6, S7, S8 + disagreements) |
+| S13: Focus Area table | Focus Area / Expected Outcome / Owner | `ai.s12_next_quarter_focus` | Agent (pm_q1 + tl_q7) |
+| S14 (PDF label)/S15 (web label): ITSM Maturity Summary | [cross-analysis findings, tag + topic + finding only in UI] | `ai.s15_itsm_maturity` | Agent (itsm_pm_1–6 + itsm_tl_1–5) |
+| S15 (PDF label)/S17 (web label): Management Attention | Item / Type / Urgency / Source | `ai.s13_management_attention` | Agent (S8, S9 + disagreements) |
+| S16: Closing Note | [professional closing paragraph] | `ai.s16_closing_note` | Agent (S13) |
+
+**Reminder:** column above uses actual `analysis.json` key paths (verified against `agent.ts`, `pdf.ts`, `page.tsx`). PDF section labels and web display numbers differ from each other and from these key names — see Report Structure sections for the full mapping.
 
 **Parsing rules for free-text answers:**
 - pm_q3 → parsed into 5 fields: active_services, delivery_model, key_stakeholders, team_composition, reporting_cadence
@@ -638,6 +693,7 @@ This is the source of truth — never deviate from this mapping.
 - tl_q4 → parsed into ticket counts + major incident rows
 - tl_q5 → parsed into 6 quality area rows: { area, observation, status, improvement_action }
 - tl_q6 → parsed into risk/issue/dependency rows: { type, description, impact, owner, mitigation }
+- itsm_pm_1–6 + itsm_tl_1–5 → parsed into topic-based cross-analysis array: { topic, pm_perspective, tl_perspective, finding, relationship }
 
 **Status auto-computation for S5 metrics:**
 - actual >= target → Green
@@ -649,12 +705,12 @@ This is the source of truth — never deviate from this mapping.
 | Relationship | What AI Does |
 |---|---|
 | Both agree | Reinforce as strong confirmed signal |
-| They disagree | Flag in S13 Management Attention + tag as DISAGREE in S10 |
+| They disagree | Flag in S14 Management Attention + tag as DISAGREE |
 | They complement | Merge into richer insight + tag as COMPLEMENT |
-| One sees risk, other doesn't | Surface as BLIND SPOT in S10 + lesson in S11 |
-| One answered, other didn't | Note the gap — do not fabricate |
+| One sees risk, other doesn't | Surface as BLIND SPOT |
+| One answered, other didn't | Note the gap — do not fabricate. This applies to ITSM (S15) too — if one role's ITSM answer doesn't address a topic the other raised, tag as BLIND_SPOT rather than inventing a stance for the silent side. |
 
-**Status disagreement rule:** pm_q2 ≠ tl_q2 → always escalates to S14,
+**Status disagreement rule:** pm_q2 ≠ tl_q2 → always escalates to S14 Management Attention,
 flagged inline in TL questionnaire in real time.
 
 **Owner field in S13:** "Product Manager" | "Tech Lead" | "Product Manager, Tech Lead" — never "Both"
@@ -678,24 +734,30 @@ flagged inline in TL questionnaire in real time.
 - AI must generate original insights — never copy-paste input text
 - Customer logo optional — hide if not uploaded
 - Role selector removed from login page — role fetched from DB after login
-- SEND_EMAIL=False during all development
+- SEND_EMAIL=False during local development by default
+- **Manual "Send Report" never changes `project.status`** — it only sets `manual_email_sent_at`. Only the scheduler (cron) sets `status: 'sent'` and `email_sent_at`. This decoupling exists because the scheduler's `WHERE status = 'ready'` query must remain reliable regardless of how many times a project has been manually sent — if manual send flipped status, the scheduler would never pick that project up again.
+- Project deletion: only available when neither PM nor TL has submitted (checked via `submitted_at IS NULL`, not row existence — draft rows from auto-save exist before submission and must not block deletion), and restricted to the project's own `assigned_pm` or `assigned_tl` (re-verified server-side, not just client-rendered)
+- Draft resume/edit: only the role owner (PM edits own `pm_answers` draft, TL edits own `tl_answers` draft) can resume an in-progress unsubmitted questionnaire; accessed via the single consolidated dashboard action button, not a separate edit icon
 
 ---
 
 ## Email Format (HTML)
 
-**Subject:** Quarterly Service Delivery Report — [Customer Name] | [Quarter]
+**Subject:** [Monthly|Quarterly] Service Delivery Report — [Project Name] | [Quarter]
+(uses `project_name`, not `customer_name` — decided for consistency with header/body; cadence word is currently hardcoded as "Quarterly" regardless of `review_cadence` — see Known Issues)
 
 **Body:**
 - Dear Stakeholder,
-- Opening paragraph (customer, period, prepared by)
+- Header banner: project_name · quarter
+- Opening paragraph: "...Report for [project_name], prepared by [PM name], Product Manager, [TL name], Tech Lead..."
 - **Quick Summary** (navy heading with bottom border)
-- **Overall Status:** [badge] — or PM/TL separate if disagreement
+- **Overall Status:** [badge] — or PM/TL separate if disagreement, with inline warning note
 - **Key Highlights:** [full text]
 - **Focus Next Quarter:** [full text]
-- **Action Required:** [list]
-- Closing + PDF attachment note
-- Regards, SELISE Digital Platforms
+- **Action Required:** [list of High urgency management attention items]
+- PDF attachment note
+- Closing + Regards, SELISE Digital Platforms
+- Footer: generated-by note + recipient count
 
 ---
 
@@ -715,12 +777,29 @@ RESEND_API_KEY=
 SENDER_EMAIL=reviews@selise.ch
 
 # Email control
-SEND_EMAIL=False        # False in dev, True in production
+SEND_EMAIL=False        # False in dev by default; flip to True only when actively testing real sends, flip back after
 
 # Scheduler
-CRON_SECRET=            # shared secret between Vercel cron and the cron route
-ALLOW_DATE_SIMULATION=true  # dev only — never set in Vercel prod
+CRON_SECRET=            # shared secret between Vercel cron and the cron route — local dev value is fine as a weak placeholder, MUST be a fresh random value in Vercel production (never reuse the dev one)
+ALLOW_DATE_SIMULATION=true  # dev only — NEVER set in Vercel production; gated together with NODE_ENV !== "production" as a second safety layer
 ```
+
+### Local Testing Notes
+- `ALLOW_DATE_SIMULATION=true` + `?simulate_date=YYYY-MM-DD` query param on `/api/cron/scheduled-send` lets you test schedule matching without waiting for the real date. Both `ALLOW_DATE_SIMULATION=true` AND `NODE_ENV !== "production"` must be true for the override to take effect — either gate failing means the real date is used.
+- Vercel Cron does NOT run locally (`next dev` doesn't simulate cron triggers) — only the route's internal logic can be tested locally via manual curl; the actual scheduled trigger only exists once deployed.
+- **PowerShell users:** `curl` is aliased to `Invoke-WebRequest`, which does not accept `-H` the same way. Use `curl.exe` explicitly to get real curl behavior:
+  ```powershell
+  curl.exe -H "Authorization: Bearer dev-cron-secret-change-in-production" "http://localhost:3000/api/cron/scheduled-send?simulate_date=2026-07-05"
+  ```
+
+### Production Deployment Checklist (Vercel)
+- All env vars from `.env.local` must be **manually** added to Vercel (Settings → Environment Variables → Production scope) — they do NOT carry over automatically from local, and a partial set (e.g. only `CRON_SECRET` added) will break the entire site (middleware creates a Supabase client on every request; missing Supabase env vars → site-wide `MIDDLEWARE_INVOCATION_FAILED` 500).
+- `CRON_SECRET` in production must be a freshly generated random value — `openssl rand -hex 32` or `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` — never the local dev placeholder.
+- `ALLOW_DATE_SIMULATION` must NOT be set in Vercel production under any circumstances.
+- After adding or changing env vars, a **Redeploy** is required to pick them up — adding a var alone does not affect an already-running deployment.
+- Vercel Cron jobs appear under the project's **Cron Jobs** tab post-deploy (reads schedule from `vercel.json`, which must be committed to the repo); can be manually triggered there for testing without waiting for the real scheduled time.
+- Vercel's Hobby (free) tier supports a single daily cron job — sufficient for this project's needs — but has a non-commercial-use restriction worth being aware of as this moves toward genuine internal production use at SELISE.
+- Before setting `SEND_EMAIL=True` in production: check `settings.recipient_emails` (global distribution list) and confirm which projects are currently `status='ready'` — the next scheduler tick will email ALL of them to that list with no confirmation step.
 
 ---
 
@@ -732,9 +811,10 @@ service-delivery-intelligence/
 ├── README.md
 ├── .env.local
 ├── .env.example
+├── vercel.json                     # Vercel Cron schedule config — must be committed
 ├── public/
 │   └── assets/
-│       ├── cover_bg.jpg
+│       ├── cover_bg.png            # must be PNG, not .jpg
 │       └── selise_logo.png
 ├── src/
 │   ├── app/
@@ -747,24 +827,37 @@ service-delivery-intelligence/
 │   │   │       ├── page.tsx        # Project detail + report preview
 │   │   │       ├── pm/page.tsx     # PM questionnaire
 │   │   │       └── tl/page.tsx     # TL questionnaire
-│   │   └── settings/page.tsx
+│   │   ├── settings/page.tsx
+│   │   └── api/
+│   │       ├── settings/route.ts              # GET/PATCH global settings
+│   │       ├── cron/scheduled-send/route.ts    # Vercel Cron target, CRON_SECRET auth
+│   │       └── projects/[id]/
+│   │           ├── route.ts                    # DELETE (pre-submission only, assigned users only)
+│   │           └── send-email/route.ts         # Manual send, sets manual_email_sent_at only
 │   ├── components/
 │   │   ├── ui/                     # Shadcn components
 │   │   ├── StatusBadge.tsx         # Green/Amber/Red badge
 │   │   ├── QuestionStep.tsx        # Single question UI
 │   │   ├── ProgressBar.tsx         # Questionnaire progress
 │   │   ├── CrossAnalysisTag.tsx    # AGREE/DISAGREE/COMPLEMENT/BLIND_SPOT tag
-│   │   ├── ReportSection.tsx       # Each of 14 sections
-│   │   └── ProjectCard.tsx         # Dashboard project row
+│   │   ├── ReportSection.tsx       # Each report section
+│   │   ├── ItsmMaturitySection.tsx # S15 — tag + topic + finding only in UI
+│   │   ├── ReportSidebar.tsx       # Section nav + scroll-spy
+│   │   ├── SendReportButton.tsx    # Manual send dialog, chip-based recipients
+│   │   └── dashboard/
+│   │       ├── ProjectsTable.tsx
+│   │       └── DeleteProjectButton.tsx
 │   ├── lib/
-│   │   ├── supabase.ts
+│   │   ├── supabase-server.ts      # Session-based client (createServerSupabaseClient)
+│   │   ├── supabase-admin.ts       # Admin/service-role client — REQUIRED for non-session contexts (cron, curl, webhooks)
 │   │   ├── anthropic.ts
-│   │   ├── agent.ts                # AI analysis logic
+│   │   ├── agent.ts                # AI analysis logic — CLAUDE_MODEL constant lives here
 │   │   ├── pdf.ts                  # PDF generation
-│   │   ├── email.ts                # Resend email sender
-│   │   └── scheduler.ts
+│   │   ├── email.ts                # Resend email sender (sendReportEmail)
+│   │   └── db.ts                   # getAnalysisResult (session) + getAnalysisResultAdmin (admin, for cron)
 │   └── types/
 │       └── index.ts
+├── middleware.ts                   # Session-auth for pages; matcher EXCLUDES all /api/* routes
 ├── package.json
 └── tailwind.config.ts
 ```
@@ -785,8 +878,8 @@ service-delivery-intelligence/
 | 8 | AI Agent — Claude API, analysis.json, cross-analysis tags, ITSM synthesis | ✅ |
 | 9 | PDF Generation — 16-section report + Value Delivered + ITSM Maturity, cover page, all tables | ✅ |
 | 10 | Report Preview — web view, section tags, sidebar nav, scroll-spy | ✅ |
-| 11 | Email — HTML body, Resend, manual send + scheduler | ✅ |
-| 12 | Settings — cadence, send day, recipients, Vercel cron, date simulation | ✅ |
+| 11 | Email — HTML body, Resend, manual send (decoupled from status) | ✅ |
+| 12 | Settings — cadence, send day, distribution list, Vercel cron scheduler, date simulation, verified end-to-end in production | ✅ |
 | 13 | End-to-end test — full flow from signup to email received | ⬜ |
 
 ---
@@ -796,9 +889,12 @@ service-delivery-intelligence/
 - Always read CLAUDE.md before starting any session
 - Build one phase at a time — do not skip phases
 - Each phase must be tested before moving to next
-- SEND_EMAIL=False during all development
+- SEND_EMAIL=False during local development by default
 - Use TypeScript strictly — no `any` types
 - All Supabase queries use Row Level Security (RLS)
+- **Always use the admin client (`supabase-admin.ts`) for server-side code that runs in non-session contexts** (cron routes, webhooks, anything invoked without a browser session cookie). The session client (`supabase-server.ts`) silently returns empty results under RLS in these contexts rather than erroring — this has caused real bugs (see Known Issues / Resolved).
+- **Any time a build includes a SQL migration, explicitly confirm with the person whether it has actually been run against Supabase** — do not assume a written/planned migration was executed. Writing the SQL and running it are two separate steps; skipping this confirmation caused three separate production bugs today.
+- **Verify actual live Supabase schema (column names) before writing queries** — do not trust that a schema documented here or in a migration plan matches what's actually in the database. Column name mismatches (e.g. assumed `schedule_cadence` vs actual `delivery_cadence`) caused repeated 500 errors.
 - Claude API calls go through lib/agent.ts only
 - PDF output must match terminal version exactly
 - Never deviate from question set, report structure, or AI reasoning rules above
@@ -811,14 +907,54 @@ service-delivery-intelligence/
   content following them; partial fix applied (ensureSpace 100pt before section headers),
   may still occur with very tall first rows
 - Cover background image must be PNG — use `assets/cover_bg.png` (not .jpg)
-- SEND_EMAIL=False during all development — never set to True until Phase 13
+- Email subject/PDF title cadence word ("Quarterly Service Delivery Report") is hardcoded — does not adapt based on `review_cadence` being 'monthly'. A monthly-cadence project's email/PDF will still say "Quarterly." Deferred fix — decision pending on whether to make dynamic, keep as-is, or genericize.
+- Report Structure section numbering has a known divergence between internal `analysis.json` keys (s10–s16) and actual UI display order/numbering after the ITSM reorder — see note under Report Structure. Verify against `ReportSidebar.tsx` directly rather than trusting doc numbers blindly until this is cleaned up.
+- Branding/logo upload (Settings page) was explicitly descoped from Phase 12 — `organisation_logo` and `customer_logos` table/column exist in schema but have no UI. Do not build features assuming this exists.
+- Vercel plan is Hobby (free) tier — technically restricted to non-commercial use; worth revisiting with whoever manages SELISE's Vercel account as this becomes genuine internal production tooling.
+
+## Known Issues / Resolved (today's session — recorded so these bug classes aren't repeated)
+
+- **Settings API column name mismatch**: route code assumed `schedule_cadence`/`send_day`/`distribution_emails`; actual table used `delivery_cadence`/`send_on_day`/`recipient_emails`. Every PATCH returned 500. Root cause: migration SQL was written but schema was never verified against the live table before writing route code.
+- **Missing `updated_by` column**: route tried to write `updated_by: user.id` on every settings PATCH; column never existed in the table. Same root cause as above — assumption not verified against live schema.
+- **Postgres rejected UPDATE with no WHERE clause**: `admin.from("settings").update(patch)` had no `.eq()` filter; Postgres safety setting rejected it with `UPDATE requires a WHERE clause` (code 21000). Fixed by fetching the row's `id` first and adding explicit `.eq("id", existing.id)`.
+- **Middleware blocked all `/api/*` routes**: matcher applied session-auth redirect broadly, with no exclusion for API routes. Broke the cron endpoint specifically, since it authenticates via `CRON_SECRET` bearer token (no session cookie) — middleware redirected it to `/login` before the route's own auth check ever ran, returning login-page HTML instead of JSON. Fixed by adding `api|` to the matcher's negative lookahead, excluding all `/api/*` from middleware entirely (each API route already handles its own auth internally).
+- **RLS silently blocked cron's analysis fetch**: `getAnalysisResult()` used the session-based Supabase client inside the cron route, which has no browser session. RLS on `analysis_results` silently returned zero rows (not an error) rather than the real row that existed, producing a false "No analysis found." Fixed by adding `getAnalysisResultAdmin()` using the admin/service-role client for this non-session context.
+- **Dynamic import broke Next.js dev bundler**: `await import("@/lib/supabase-admin")` inside a function body failed to resolve at runtime in dev (`Cannot find module './_rsc_...'`). Fixed by converting to a static top-level import.
+- **ITSM migration columns coded but never run**: `itsm_pm_1-6`/`itsm_tl_1-5` columns were referenced in code but the `ALTER TABLE` was never executed against the live database — same pattern as the settings table issue. Always confirm migrations were actually run, not just written/planned.
 
 ---
 
 ## Last Updated
-July 2, 2026 — ITSM Maturity step added to both questionnaires.
-PM: 11 steps (Step 9 = ITSM & Service Maturity, Step 10 = Additional Notes, Step 11 = Review Summary).
-TL: 9 steps (Step 7 = ITSM & Technical Maturity, Step 8 = Next Quarter Focus, Step 9 = Review Summary).
-Report expanded to 16 sections: S15 = ITSM Maturity Summary (AI-synthesised), S16 = Closing Note (was S15).
-analysis.json: added s15_itsm_maturity, renamed s14_closing_note → s16_closing_note.
-DB migrations required: ALTER TABLE pm_answers ADD COLUMN itsm_pm_1..6 text; ALTER TABLE tl_answers ADD COLUMN itsm_tl_1..5 text.
+July 2, 2026 — Full sync pass plus code-verified correction pass:
+
+**Sync pass:** corrected all remaining stale step/section counts (PM 11 steps, TL 9
+steps). Removed out-of-scope Branding/logo UI description from Settings page section
+(explicitly descoped from Phase 12; DB columns exist but no UI). Documented manual-send/
+scheduler status decoupling as a permanent Key Rule. Added Known Issues / Resolved log —
+six production bugs found and fixed during Phase 12 deployment (schema mismatches,
+missing WHERE clause, middleware blocking /api/*, RLS/session-context bug in cron,
+dynamic import bundler issue, unrun ITSM migration). Added Local Testing Notes and
+Production Deployment Checklist sections. Added AI model note — currently on
+claude-sonnet-4-6, Sonnet 5 confirmed available as drop-in upgrade if needed later.
+Phase 12 confirmed fully verified end-to-end in production.
+
+**Code-verification pass (this update):** read `pdf.ts`, `agent.ts`, `page.tsx`, and
+`ReportSidebar.tsx` directly to resolve a suspected section-numbering discrepancy from
+the prior sync pass. Findings:
+- PDF (16 sections, S1-S16) and web report preview (18 sections) are **intentionally
+  different structures**, not a bug — web splits Delivery Status and Health Rating into
+  standalone sections for navigation; PDF folds the same data into inline badges for
+  compactness. Both confirmed correct and now documented separately.
+- `analysis.json` key names in `ai_generated` (verified: `s10_value_delivered`,
+  `s10_cross_analysis`, `s11_lessons_learned`, `s12_next_quarter_focus`,
+  `s13_management_attention`, `s15_itsm_maturity`, `s16_closing_note` — note no `s14_*`
+  exists) do NOT match either PDF label numbers or web display numbers. Confirmed
+  cosmetic only — `agent.ts` and `pdf.ts`/`page.tsx` all reference the identical key
+  names correctly, so no functional bug exists, just confusing internal naming from
+  before the ITSM section was inserted. Flagged as optional low-priority cleanup.
+- ITSM Maturity Summary section order confirmed correct in both PDF and web — sits
+  before Management Attention in both, as intended.
+
+Report Structure, analysis.json schema, and Report → Question Mapping sections above
+now reflect ground truth from the actual codebase rather than assumed structure.
+Phase 13 (end-to-end test) remains outstanding.

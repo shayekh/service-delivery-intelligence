@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-// @ts-ignore: CSS side-effect import type declarations
+// @ts-expect-error
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
