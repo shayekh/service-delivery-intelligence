@@ -880,7 +880,7 @@ service-delivery-intelligence/
 | 10 | Report Preview — web view, section tags, sidebar nav, scroll-spy | ✅ |
 | 11 | Email — HTML body, Resend, manual send (decoupled from status) | ✅ |
 | 12 | Settings — cadence, send day, distribution list, Vercel cron scheduler, date simulation, verified end-to-end in production | ✅ |
-| 13 | End-to-end test — full flow from signup to email received | ⬜ |
+| 13 | End-to-end test — full flow from signup to email received | ✅ |
 
 ---
 
