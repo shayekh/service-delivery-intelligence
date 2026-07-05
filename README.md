@@ -41,7 +41,10 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 ## Local Deployment
 Fully restart the dev server (stop and re-run npm run dev)
-Re-run: curl.exe -H "Authorization: Bearer dev-cron-secret-change-in-production" "http://localhost:3000/api/cron/scheduled-send?simulate_date=2026-07-01" - This date should be pressent date for testing
+
+Re-run: curl.exe -H "Authorization: Bearer dev-cron-secret-change-in-production" "http://localhost:3000/api/cron/scheduled-send?simulate_date=2026-07-01"
+
+- This date should be pressent date for testing
 
 
 ## Anthropic API Key Platform
