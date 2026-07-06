@@ -37,6 +37,8 @@ export function CrossAnalysisSummary({
             return (
               <div
                 key={i}
+                data-focus-item-id={`ca-${i}`}
+                style={{ scrollMarginTop: "var(--report-header-height, 0px)" }}
                 className={cn(
                   "border-l-4 pl-4 py-2",
                   styles.border

@@ -1,6 +1,31 @@
 import { anthropic, CLAUDE_MODEL } from "@/lib/anthropic";
 import { getPMAnswers, getProjectById, getTLAnswers, getUserById } from "@/lib/db";
-import type { AnalysisJson, PmAnswers, Project, StatusColor, TlAnswers } from "@/types";
+import type { AnalysisJson, PmAnswers, Project, StatusColor, TlAnswers, TokenUsage } from "@/types";
+
+// Pricing per million tokens — update here if Anthropic changes rates.
+const MODEL_PRICING = {
+  input_per_mtok: 3.00,
+  output_per_mtok: 15.00,
+  cache_write_per_mtok: 3.75,  // 1.25x input price
+  cache_read_per_mtok: 0.30,   // 0.1x input price
+} as const;
+
+function calculateCost(usage: {
+  input_tokens: number;
+  output_tokens: number;
+  cache_creation_input_tokens?: number;
+  cache_read_input_tokens?: number;
+}): number {
+  const { input_per_mtok, output_per_mtok, cache_write_per_mtok, cache_read_per_mtok } = MODEL_PRICING;
+  const cacheWrite = usage.cache_creation_input_tokens ?? 0;
+  const cacheRead = usage.cache_read_input_tokens ?? 0;
+  return (
+    (usage.input_tokens / 1_000_000) * input_per_mtok +
+    (usage.output_tokens / 1_000_000) * output_per_mtok +
+    (cacheWrite / 1_000_000) * cache_write_per_mtok +
+    (cacheRead / 1_000_000) * cache_read_per_mtok
+  );
+}
 
 const SCHEMA_TEXT = `{
   "report_meta": {
@@ -305,7 +330,7 @@ function applyComputedFields(
   return result;
 }
 
-export async function generateAnalysis(projectId: string): Promise<AnalysisJson> {
+export async function generateAnalysis(projectId: string): Promise<{ analysis: AnalysisJson; tokenUsage: TokenUsage }> {
   console.log(`[generateAnalysis] START projectId=${projectId}`);
   console.log(
     `[generateAnalysis] ANTHROPIC_API_KEY present=${!!process.env.ANTHROPIC_API_KEY} length=${process.env.ANTHROPIC_API_KEY?.length ?? 0} prefix=${process.env.ANTHROPIC_API_KEY?.slice(0, 12) ?? "undefined"}`
@@ -332,7 +357,7 @@ export async function generateAnalysis(projectId: string): Promise<AnalysisJson>
   try {
     response = await anthropic.messages.create({
       model: CLAUDE_MODEL,
-      max_tokens: 8192,
+      max_tokens: 12000,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: buildUserMessage(source) }],
     });
@@ -347,6 +372,30 @@ export async function generateAnalysis(projectId: string): Promise<AnalysisJson>
   }
 
   console.log("[generateAnalysis] Claude API call succeeded. stop_reason:", response.stop_reason);
+
+  const usage = response.usage;
+  const usageAny = usage as unknown as Record<string, number>;
+  const cacheWrite = usageAny.cache_creation_input_tokens ?? 0;
+  const cacheRead = usageAny.cache_read_input_tokens ?? 0;
+  const costUsd = calculateCost({
+    input_tokens: usage.input_tokens,
+    output_tokens: usage.output_tokens,
+    cache_creation_input_tokens: cacheWrite,
+    cache_read_input_tokens: cacheRead,
+  });
+  const tokenUsage: TokenUsage = {
+    model: CLAUDE_MODEL,
+    input_tokens: usage.input_tokens,
+    output_tokens: usage.output_tokens,
+    total_tokens: usage.input_tokens + usage.output_tokens,
+    cache_creation_input_tokens: cacheWrite,
+    cache_read_input_tokens: cacheRead,
+    cost_usd: costUsd,
+  };
+  console.log(
+    `[generateAnalysis] tokens — input: ${tokenUsage.input_tokens}, output: ${tokenUsage.output_tokens}, total: ${tokenUsage.total_tokens}, cache_write: ${cacheWrite}, cache_read: ${cacheRead}, cost_usd: $${costUsd.toFixed(6)}`
+  );
+
   console.log("[generateAnalysis] raw response.content:", JSON.stringify(response.content, null, 2));
 
   if (response.stop_reason === "max_tokens") {
@@ -377,7 +426,7 @@ export async function generateAnalysis(projectId: string): Promise<AnalysisJson>
     );
   }
 
-  const result = applyComputedFields(parsed, source);
+  const analysis = applyComputedFields(parsed, source);
   console.log(`[generateAnalysis] END projectId=${projectId} success`);
-  return result;
+  return { analysis, tokenUsage };
 }

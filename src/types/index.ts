@@ -82,10 +82,22 @@ export interface TlAnswers {
   submitted_at: string | null;
 }
 
+export interface TokenUsage {
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  cache_creation_input_tokens: number;
+  cache_read_input_tokens: number;
+  cost_usd: number;
+}
+
 export interface AnalysisResult {
   id: string;
   project_id: string | null;
   analysis: AnalysisJson;
+  token_usage: TokenUsage | null;
+  cost_usd: number | null;
   generated_at: string;
 }
 

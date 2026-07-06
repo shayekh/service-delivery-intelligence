@@ -34,8 +34,8 @@ export async function submitPmAnswersAction(
     if (bothSubmitted) {
       await updateProjectStatus(saved.project_id, "processing");
       try {
-        const analysis = await generateAnalysis(saved.project_id);
-        await saveAnalysisResult(saved.project_id, analysis);
+        const { analysis, tokenUsage } = await generateAnalysis(saved.project_id);
+        await saveAnalysisResult(saved.project_id, analysis, tokenUsage);
         await clearProjectError(saved.project_id);
         await updateProjectStatus(saved.project_id, "ready");
       } catch (err) {

@@ -924,7 +924,48 @@ service-delivery-intelligence/
 
 ---
 
+## Token Cost Tracking
+
+Every AI analysis run captures token usage and cost from the Anthropic API response and persists it to Supabase.
+
+**Where cost data lives:**
+- `analysis_results` table: two new columns — `token_usage` (jsonb) and `cost_usd` (float8)
+- `token_usage` stores `{ model, input_tokens, output_tokens, total_tokens, cache_creation_input_tokens, cache_read_input_tokens, cost_usd }`
+- Older rows (before this feature) will have `NULL` in both columns — they are excluded from aggregate stats
+
+**How cost is calculated (`src/lib/agent.ts`):**
+- Pricing config is in the `MODEL_PRICING` constant at the top of `agent.ts` — update it there if Anthropic changes rates
+- Formula: `(input / 1M × $3.00) + (output / 1M × $15.00) + (cache_write / 1M × $3.75) + (cache_read / 1M × $0.30)`
+- Cache tokens extracted via `usage as unknown as Record<string, number>` because the SDK's `Usage` type doesn't include cache fields in its TypeScript definition even though they appear at runtime when caching is active
+
+**Where it surfaces:**
+- Console log on every run: `[generateAnalysis] tokens — input: X, output: Y, total: Z, cost_usd: $N`
+- No UI currently — the tracking pipeline is live and persisting data to `analysis_results`, but there is no page rendering it yet. `getAnalysisCostStats()` in `src/lib/db.ts` and a ready-made card component at `src/components/settings/AnalysisCostCard.tsx` exist and are unused, pending a decision on where to surface them.
+
+**Migration required (run in Supabase before deploying):**
+```sql
+alter table analysis_results
+  add column if not exists token_usage jsonb,
+  add column if not exists cost_usd float8;
+```
+
+**Future note:** If the pipeline ever moves to multiple API calls per analysis (e.g. Tier 2 agentic with chained calls), `calculateCost()` in `agent.ts` should be called per-call and the results summed before passing the final `TokenUsage` to `saveAnalysisResult`. The current schema stores one `token_usage` blob per analysis row — it would need to become an array or a separate `token_usage_events` table if per-call granularity matters.
+
+---
+
 ## Last Updated
+July 6, 2026 — Token cost tracking added (additive instrumentation only, no prompt/model/max_tokens changes):
+- `analysis_results` table: new `token_usage` (jsonb) and `cost_usd` (float8) columns
+- `src/lib/agent.ts`: `MODEL_PRICING` config, `calculateCost()`, usage capture after API call, console logging; `generateAnalysis` now returns `{ analysis, tokenUsage }`
+- `src/lib/db.ts`: `saveAnalysisResult` updated to accept optional `TokenUsage`; new `getAnalysisCostStats()` for Settings page aggregates
+- `src/components/settings/AnalysisCostCard.tsx`: new component (unused/dormant) — exists for future use, not currently rendered anywhere
+- `src/app/(app)/settings/page.tsx`: no UI change — cost card was added then removed; page unchanged from pre-tracking state
+- Both action files (`pm/actions.ts`, `tl/actions.ts`) updated to destructure `{ analysis, tokenUsage }` from `generateAnalysis`
+- DB migration SQL documented above — must be run in Supabase before deploying
+
+---
+
+## Last Updated (previous)
 July 2, 2026 — Full sync pass plus code-verified correction pass:
 
 **Sync pass:** corrected all remaining stale step/section counts (PM 11 steps, TL 9

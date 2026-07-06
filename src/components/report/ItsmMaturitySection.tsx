@@ -10,7 +10,7 @@ const TAG_STYLES: Record<CrossAnalysisRelationship, { bg: string; text: string; 
 
 type ItsmEntry = AnalysisJson["ai_generated"]["s15_itsm_maturity"][number];
 
-function ItsmEntry({ entry }: { entry: ItsmEntry }) {
+function ItsmEntry({ entry, index }: { entry: ItsmEntry; index: number }) {
   const tag = TAG_STYLES[entry.relationship] ?? {
     bg: "bg-slate-400",
     text: "text-white",
@@ -18,7 +18,11 @@ function ItsmEntry({ entry }: { entry: ItsmEntry }) {
   };
 
   return (
-    <div className="border-b border-slate-100 py-4 last:border-0">
+    <div
+      data-focus-item-id={`itsm-${index}`}
+      style={{ scrollMarginTop: "var(--report-header-height, 0px)" }}
+      className="border-b border-slate-100 py-4 last:border-0"
+    >
       <div className="mb-2 flex items-center gap-2">
         <span
           className={`rounded px-2 py-0.5 text-xs font-bold ${tag.bg} ${tag.text}`}
@@ -44,7 +48,7 @@ export function ItsmMaturitySection({
       ) : (
         <div className="divide-y divide-slate-100">
           {data.map((entry, i) => (
-            <ItsmEntry key={i} entry={entry} />
+            <ItsmEntry key={i} entry={entry} index={i} />
           ))}
         </div>
       )}
