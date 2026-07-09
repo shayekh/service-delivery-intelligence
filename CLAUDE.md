@@ -133,13 +133,14 @@ AI AGENT (triggers automatically once BOTH pm_answers and tl_answers exist)
 → Step 3: Generate S10–S16
 → Step 4: Self-check — verify all placeholders filled
 → analysis saved to Supabase
-→ project status: "Generating PDF"
+→ project status: "ready"
 
-PDF GENERATION (triggers after agent)
-→ 16-section Quarterly Service Delivery Report generated
-→ Saved to Supabase Storage bucket "reports"
-→ projects.pdf_url stores the PDF public URL
-→ project status: "Ready"
+PDF GENERATION (triggers automatically right after agent, same server action)
+→ 16-section Quarterly Service Delivery Report generated immediately after generateAnalysis() succeeds
+→ Saved to Supabase Storage bucket "reports" at path `{projectId}/report.pdf` (upsert: true — overwrites on regeneration)
+→ projects.pdf_url stores the public URL
+→ PDF generation is best-effort: if it fails, status is still "ready" and the web report is viewable; the PDF API route (/api/projects/[id]/pdf) will attempt on-demand generation as a fallback
+→ "Download PDF" button opens projects.pdf_url directly if set (no generation delay); falls back to the API route only if pdf_url is null
 
 EMAIL
 → Scheduler (Vercel Cron, daily) checks settings.delivery_cadence + send_on_day
@@ -745,8 +746,8 @@ flagged inline in TL questionnaire in real time.
 - Both Assign PM and Assign TL are mandatory when creating a project
 - TL sees all projects on dashboard and can open any awaiting TL submission
 - AI triggers only when BOTH have submitted
-- PDF generated after AI analysis completes — stored in Supabase Storage bucket "reports"
-- projects.pdf_url stores the PDF public URL
+- PDF is generated automatically right after generateAnalysis() succeeds (in pm/actions.ts and tl/actions.ts), not on download-click — stored in Supabase Storage bucket "reports" at `{projectId}/report.pdf`
+- projects.pdf_url stores the PDF public URL; Download PDF button opens it directly if set, falls back to on-demand generation if null
 - All free-text answers described naturally — AI parses into structured tables
 - Date format: DD Month, YYYY (e.g. 28 June, 2026)
 - Status badges: Green / Amber / Red — inline, never on separate line

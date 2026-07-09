@@ -66,7 +66,7 @@ export function ReportHeader({
         </div>
 
         <div className="flex shrink-0 items-start gap-3 pt-1">
-          <DownloadPdfButton projectId={project.id} />
+          <DownloadPdfButton projectId={project.id} pdfUrl={project.pdf_url} />
           <SendReportButton
             projectId={project.id}
             recipientEmails={project.recipient_emails ?? []}

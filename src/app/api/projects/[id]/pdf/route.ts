@@ -27,6 +27,12 @@ export async function GET(
     return NextResponse.json({ error: "Report is not ready yet" }, { status: 409 });
   }
 
+  // If PDF was already generated at analysis time, serve it directly
+  if (project.pdf_url) {
+    return NextResponse.json({ url: project.pdf_url });
+  }
+
+  // Fallback: PDF generation failed at analysis time — generate now
   try {
     const url = await generateReportPdf(id);
     return NextResponse.json({ url });
