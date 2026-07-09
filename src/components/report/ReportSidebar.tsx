@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 const SUBMISSION_SECTIONS = [
@@ -45,6 +45,7 @@ function SidebarLink({
   return (
     <button
       type="button"
+      data-sidebar-item={id}
       onClick={scrollTo}
       className={cn(
         "w-full rounded-lg px-3 py-2 text-left text-sm transition-colors",
@@ -60,6 +61,7 @@ function SidebarLink({
 
 export function ReportSidebar() {
   const [activeId, setActiveId] = useState<string>(SUBMISSION_SECTIONS[0].id);
+  const asideRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -82,8 +84,24 @@ export function ReportSidebar() {
     return () => observer.disconnect();
   }, []);
 
+  // Auto-scroll the sidebar to keep the active item visible
+  useEffect(() => {
+    if (!asideRef.current) return;
+    const btn = asideRef.current.querySelector<HTMLElement>(
+      `[data-sidebar-item="${activeId}"]`
+    );
+    btn?.scrollIntoView({ block: "nearest" });
+  }, [activeId]);
+
   return (
-    <aside className="sticky top-24 w-64 shrink-0 self-start px-4 py-6">
+    <aside
+      ref={asideRef}
+      className="sticky hidden w-64 shrink-0 self-start overflow-y-auto px-4 py-6 lg:block"
+      style={{
+        top: "calc(var(--report-header-height, 0px) + var(--focus-lens-bar-height, 0px) + 0.5rem)",
+        maxHeight: "calc(100vh - var(--report-header-height, 0px) - var(--focus-lens-bar-height, 0px) - 1rem)",
+      }}
+    >
       <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
         From Submission
       </p>

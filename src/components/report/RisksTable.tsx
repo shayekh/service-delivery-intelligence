@@ -33,7 +33,7 @@ export function RisksTable({
               <tr
                 key={i}
                 data-focus-item-id={`risk-${i}`}
-                style={{ scrollMarginTop: "var(--report-header-height, 0px)" }}
+                style={{ scrollMarginTop: "calc(var(--report-header-height, 0px) + var(--focus-lens-bar-height, 0px))" }}
               >
                 <td className="py-2 pr-4">
                   <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">

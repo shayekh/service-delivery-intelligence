@@ -6,6 +6,7 @@ import type { FocusLensItem } from "@/lib/focusLens";
 
 interface Props {
   lensLabel: string;
+  sectionLabel: string;
   currentIndex: number;
   total: number;
   currentItem: FocusLensItem;
@@ -16,6 +17,7 @@ interface Props {
 
 export function FocusLensStepper({
   lensLabel,
+  sectionLabel,
   currentIndex,
   total,
   currentItem,
@@ -56,8 +58,11 @@ export function FocusLensStepper({
         <ChevronLeft className="h-4 w-4" />
       </button>
 
-      <span className="px-2 text-sm font-medium text-slate-700 whitespace-nowrap">
-        {lensLabel} · {currentIndex + 1} of {total}
+      <span className="px-2 text-sm font-medium text-slate-700">
+        <span className="whitespace-nowrap">{lensLabel} · {currentIndex + 1} of {total}</span>
+        {sectionLabel && (
+          <span className="ml-2 hidden text-slate-400 sm:inline whitespace-nowrap">— {sectionLabel}</span>
+        )}
       </span>
 
       <button

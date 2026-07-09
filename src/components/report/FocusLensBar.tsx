@@ -1,14 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { getFocusLensItems, getAvailableLenses } from "@/lib/focusLens";
+import { getFocusLensItems, getAvailableLenses, SECTION_TITLES } from "@/lib/focusLens";
+import { LENS_COLORS } from "@/lib/tagColors";
 import { FocusLensStepper } from "@/components/report/FocusLensStepper";
 import type { AnalysisJson } from "@/types";
 
 export function FocusLensBar({ analysis }: { analysis: AnalysisJson }) {
   const [activeLens, setActiveLens] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const barRef = useRef<HTMLDivElement>(null);
 
   const allItems = useMemo(() => getFocusLensItems(analysis), [analysis]);
   const lenses = useMemo(() => getAvailableLenses(allItems), [allItems]);
@@ -19,6 +21,23 @@ export function FocusLensBar({ analysis }: { analysis: AnalysisJson }) {
 
   const currentItem = filteredItems[currentIndex] ?? null;
   const activeLensLabel = lenses.find((l) => l.key === activeLens)?.label ?? "";
+
+  // Write --focus-lens-bar-height so SectionCard scroll-margin-top stays correct
+  useEffect(() => {
+    function updateHeight() {
+      if (barRef.current) {
+        const h = barRef.current.getBoundingClientRect().height;
+        document.documentElement.style.setProperty("--focus-lens-bar-height", `${h}px`);
+      }
+    }
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    if (barRef.current) observer.observe(barRef.current);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.setProperty("--focus-lens-bar-height", "0px");
+    };
+  }, []);
 
   function enterLens(key: string) {
     setActiveLens(key);
@@ -40,56 +59,50 @@ export function FocusLensBar({ analysis }: { analysis: AnalysisJson }) {
 
   return (
     <>
-      <div className="border-b border-slate-200 bg-white px-8 py-3">
+      <div
+        ref={barRef}
+        className="z-[9] border-b border-slate-200 bg-white px-8 py-3"
+        style={{ position: "sticky", top: "var(--report-header-height, 0px)" }}
+      >
         <div className="flex flex-wrap items-center gap-2">
           <span className="mr-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
             Focus lens
           </span>
 
-          <button
-            type="button"
-            onClick={exitLens}
-            className={cn(
-              "rounded-full px-3 py-1 text-sm font-medium transition-colors",
-              activeLens === null
-                ? "bg-slate-800 text-white"
-                : "text-slate-500 hover:bg-slate-100"
-            )}
-          >
-            All
-          </button>
-
-          {lenses.map((lens) => (
-            <button
-              key={lens.key}
-              type="button"
-              onClick={() => enterLens(lens.key)}
-              className={cn(
-                "flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-colors",
-                activeLens === lens.key
-                  ? "bg-slate-800 text-white"
-                  : "text-slate-500 hover:bg-slate-100"
-              )}
-            >
-              {lens.label}
-              <span
+          {lenses.map((lens) => {
+            const colors = LENS_COLORS[lens.key] ?? { bg: "bg-slate-100", text: "text-slate-600" };
+            const isActive = activeLens === lens.key;
+            return (
+              <button
+                key={lens.key}
+                type="button"
+                onClick={() => (isActive ? exitLens() : enterLens(lens.key))}
                 className={cn(
-                  "rounded-full px-1.5 py-0.5 text-xs tabular-nums",
-                  activeLens === lens.key
-                    ? "bg-white/20 text-white"
-                    : "bg-slate-100 text-slate-500"
+                  "flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-colors",
+                  isActive
+                    ? cn(colors.bg, colors.text, "font-semibold ring-1 ring-inset ring-current/30")
+                    : "text-slate-500 hover:bg-slate-100"
                 )}
               >
-                {lens.count}
-              </span>
-            </button>
-          ))}
+                {lens.label}
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.5 text-xs tabular-nums",
+                    isActive ? "bg-white/70 " + colors.text : "bg-slate-100 text-slate-500"
+                  )}
+                >
+                  {lens.count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {activeLens && currentItem && (
         <FocusLensStepper
           lensLabel={activeLensLabel}
+          sectionLabel={SECTION_TITLES[currentItem.sectionId] ?? ""}
           currentIndex={currentIndex}
           total={filteredItems.length}
           currentItem={currentItem}

@@ -1,25 +1,7 @@
 import { SectionCard, NA } from "@/components/report/SectionCard";
 import { cn } from "@/lib/utils";
-import type { AnalysisJson, CrossAnalysisRelationship } from "@/types";
-
-const TAG_STYLES: Record<CrossAnalysisRelationship, { border: string; tag: string }> = {
-  AGREE: {
-    border: "border-l-green-500",
-    tag: "bg-green-100 text-green-700",
-  },
-  DISAGREE: {
-    border: "border-l-red-500",
-    tag: "bg-red-100 text-red-700",
-  },
-  COMPLEMENT: {
-    border: "border-l-blue-500",
-    tag: "bg-blue-100 text-blue-700",
-  },
-  BLIND_SPOT: {
-    border: "border-l-amber-500",
-    tag: "bg-amber-100 text-amber-700",
-  },
-};
+import { RELATIONSHIP_TAG } from "@/lib/tagColors";
+import type { AnalysisJson } from "@/types";
 
 export function CrossAnalysisSummary({
   data,
@@ -33,22 +15,25 @@ export function CrossAnalysisSummary({
       ) : (
         <div className="space-y-3">
           {data.map((entry, i) => {
-            const styles = TAG_STYLES[entry.relationship];
+            const styles = RELATIONSHIP_TAG[entry.relationship] ?? {
+              bg: "bg-slate-100",
+              text: "text-slate-600",
+              border: "border-l-slate-300",
+              label: entry.relationship,
+            };
             return (
               <div
                 key={i}
                 data-focus-item-id={`ca-${i}`}
-                style={{ scrollMarginTop: "var(--report-header-height, 0px)" }}
-                className={cn(
-                  "border-l-4 pl-4 py-2",
-                  styles.border
-                )}
+                style={{ scrollMarginTop: "calc(var(--report-header-height, 0px) + var(--focus-lens-bar-height, 0px))" }}
+                className={cn("border-l-4 pl-4 py-2", styles.border)}
               >
                 <div className="mb-1 flex items-center gap-2">
                   <span
                     className={cn(
                       "rounded px-2 py-0.5 text-xs font-bold uppercase",
-                      styles.tag
+                      styles.bg,
+                      styles.text
                     )}
                   >
                     {entry.relationship.replace("_", " ")}

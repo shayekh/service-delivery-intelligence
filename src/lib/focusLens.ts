@@ -1,5 +1,26 @@
 import type { AnalysisJson } from "@/types";
 
+export const SECTION_TITLES: Record<string, string> = {
+  "section-01": "01 Executive Summary",
+  "section-02": "02 Service Overview",
+  "section-03": "03 Delivery Status",
+  "section-04": "04 Health Rating",
+  "section-05": "05 Key Achievements",
+  "section-06": "06 Delivery Summary",
+  "section-07": "07 Service Metrics",
+  "section-08": "08 Support & Incidents",
+  "section-09": "09 Quality & Health",
+  "section-10": "10 Risks & Dependencies",
+  "section-11": "11 Customer Feedback",
+  "section-12": "12 Value Delivered",
+  "section-13": "13 Cross-Analysis Summary",
+  "section-14": "14 Lessons Learned",
+  "section-15": "15 Next Quarter Focus",
+  "section-16": "16 ITSM Maturity Summary",
+  "section-17": "17 Management Attention",
+  "section-18": "18 Closing Note",
+};
+
 export interface FocusLensItem {
   id: string;
   lenses: string[];
