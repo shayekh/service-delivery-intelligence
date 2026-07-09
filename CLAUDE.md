@@ -1,7 +1,26 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Service Delivery Intelligence — CLAUDE.md (Web App Version)
 
 > Persistent memory for this project.
 > Read this before doing anything. Update when plan evolves.
+
+---
+
+## Commands
+
+```bash
+npm run dev      # Start dev server (localhost:3000)
+npm run build    # Production build (run to check TypeScript errors)
+npm run lint     # ESLint
+npm run start    # Start production server (after build)
+```
+
+No test suite exists. TypeScript errors surface via `npm run build`.
+
+**PowerShell note:** use `curl.exe` (not `curl`) when testing API routes — `curl` is aliased to `Invoke-WebRequest` in PowerShell and does not accept `-H` the same way.
 
 ---
 
