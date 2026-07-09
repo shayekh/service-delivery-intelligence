@@ -1,6 +1,7 @@
 export type UserRole = "product_manager" | "tech_lead";
 export type StatusColor = "Green" | "Amber" | "Red";
 export type ReviewCadence = "monthly" | "quarterly";
+export type AnalysisMode = "deterministic" | "non_deterministic";
 export type ProjectStatus =
   | "awaiting_pm"
   | "awaiting_tl"
@@ -34,6 +35,7 @@ export interface Project {
   created_by: string | null;
   created_at: string;
   error_message: string | null;
+  analysis_mode: AnalysisMode;
 }
 
 export interface PmAnswers {
@@ -137,6 +139,7 @@ export interface CreateProjectInput {
   assigned_tl: string | null;
   recipient_emails: string[];
   created_by: string | null;
+  analysis_mode: AnalysisMode;
 }
 
 export type CrossAnalysisRelationship =

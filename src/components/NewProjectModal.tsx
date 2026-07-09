@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createProjectAction } from "@/app/(app)/dashboard/actions";
-import type { ReviewCadence, User } from "@/types";
+import type { AnalysisMode, ReviewCadence, User } from "@/types";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"] as const;
@@ -106,6 +106,7 @@ export function NewProjectModal({
   const [assignedPm, setAssignedPm] = useState("");
   const [assignedTl, setAssignedTl] = useState("");
   const [emails, setEmails] = useState<string[]>([]);
+  const [analysisMode] = useState<AnalysisMode>("deterministic");
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -172,6 +173,7 @@ export function NewProjectModal({
         assigned_tl: assignedTl,
         recipient_emails: emails,
         created_by: currentUserId,
+        analysis_mode: analysisMode,
       });
 
       resetForm();
@@ -357,6 +359,32 @@ export function NewProjectModal({
               onRemove={handleRemoveEmail}
               error={errors.email}
             />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Analysis Mode
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                className="rounded-lg border-2 border-blue-600 bg-blue-50 px-3 py-3 text-left transition-colors"
+              >
+                <span className="block text-sm font-semibold text-blue-700">Deterministic</span>
+                <span className="mt-0.5 block text-xs text-slate-500">
+                  Structured, rule-based analysis with consistent, reproducible outputs.
+                </span>
+              </button>
+              <div className="relative cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 opacity-60">
+                <span className="absolute right-2 top-2 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                  Coming Soon
+                </span>
+                <span className="block pr-20 text-sm font-semibold text-slate-400">Non-Deterministic</span>
+                <span className="mt-0.5 block text-xs text-slate-400">
+                  Agentic AI analysis with historical trend awareness.
+                </span>
+              </div>
+            </div>
           </div>
 
           {errors.form && <p className="text-sm text-red-600">{errors.form}</p>}

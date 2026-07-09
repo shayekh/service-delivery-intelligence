@@ -944,6 +944,23 @@ service-delivery-intelligence/
 
 ---
 
+## Analysis Mode
+
+`projects.analysis_mode` is a text column (check-constrained to `'deterministic' | 'non_deterministic'`, default `'deterministic'`).
+
+The New Project modal exposes a two-card selector. **Deterministic** is selected by default and is the only active option. **Non-Deterministic** is rendered as a disabled card with a "Coming Soon" badge — it cannot be clicked or selected.
+
+**No pipeline branching exists yet.** `agent.ts` / `generateAnalysis()` ignores `analysis_mode` entirely. The column is captured on project creation solely to avoid a schema migration later when Tier 2 (agentic, tool-use loop) analysis ships.
+
+**DB migration (must be run in Supabase before deploying):**
+```sql
+alter table projects
+  add column if not exists analysis_mode text not null default 'deterministic'
+  check (analysis_mode in ('deterministic', 'non_deterministic'));
+```
+
+---
+
 ## Token Cost Tracking
 
 Every AI analysis run captures token usage and cost from the Anthropic API response and persists it to Supabase.
