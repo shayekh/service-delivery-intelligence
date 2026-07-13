@@ -44,11 +44,11 @@ const URGENCY_COLORS: Record<string, RGB> = {
 };
 
 function readPublicAsset(relativePath: string): Uint8Array | null {
+  const fullPath = path.join(process.cwd(), "public", relativePath);
   try {
-    return fs.readFileSync(
-      path.join(process.cwd(), "public", relativePath)
-    );
-  } catch {
+    return fs.readFileSync(fullPath);
+  } catch (err) {
+    console.error(`[PDF] readPublicAsset failed for "${fullPath}":`, err);
     return null;
   }
 }
@@ -501,8 +501,6 @@ async function drawCoverPage(
 ): Promise<void> {
   const page = builder.doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
 
-  const bgPath = path.join(process.cwd(), "public", "assets", "cover_bg.png");
-  console.log("[PDF cover] reading cover_bg.png from:", bgPath);
   const bgBytes = readPublicAsset("assets/cover_bg.png");
   console.log("[PDF cover] cover_bg.png read result:", bgBytes ? `${bgBytes.length} bytes` : "null (file not found)");
   if (bgBytes) {
