@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useRef } from "react";
 import { DownloadPdfButton } from "@/components/report/DownloadPdfButton";
 import { SendReportButton } from "@/components/report/SendReportButton";
 import type { AnalysisJson, Project } from "@/types";
@@ -27,9 +30,23 @@ export function ReportHeader({
   analysis: AnalysisJson | null;
 }) {
   const preparedBy = analysis?.report_meta.prepared_by ?? "—";
+  const headerRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    function updateHeight() {
+      if (headerRef.current) {
+        const h = headerRef.current.getBoundingClientRect().height;
+        document.documentElement.style.setProperty("--report-header-height", `${h}px`);
+      }
+    }
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    if (headerRef.current) observer.observe(headerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <header className="sticky top-0 z-10 border-b border-slate-200 bg-white px-8 py-6">
+    <header ref={headerRef} className="sticky top-0 z-10 border-b border-slate-200 bg-white px-8 py-6">
       <div className="relative flex items-start justify-between">
         <div>
           <div className="flex items-center gap-3">
@@ -49,7 +66,7 @@ export function ReportHeader({
         </div>
 
         <div className="flex shrink-0 items-start gap-3 pt-1">
-          <DownloadPdfButton projectId={project.id} />
+          <DownloadPdfButton projectId={project.id} pdfUrl={project.pdf_url} />
           <SendReportButton
             projectId={project.id}
             recipientEmails={project.recipient_emails ?? []}

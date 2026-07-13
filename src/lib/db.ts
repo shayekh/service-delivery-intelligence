@@ -9,8 +9,17 @@ import type {
   ProjectWithAssignees,
   Settings,
   TlAnswers,
+  TokenUsage,
   User,
 } from "@/types";
+
+export interface AnalysisCostStats {
+  total_analyses: number;
+  total_cost_usd: number;
+  average_cost_usd: number;
+  most_recent_cost_usd: number | null;
+  most_recent_at: string | null;
+}
 
 interface ProjectWithAssigneesRow extends Project {
   assigned_pm_user: { full_name: string } | null;
@@ -259,12 +268,15 @@ export async function saveTLAnswers(
 
 export async function saveAnalysisResult(
   projectId: string,
-  analysis: AnalysisJson
+  analysis: AnalysisJson,
+  tokenUsage?: TokenUsage
 ): Promise<void> {
   const supabase = await createServerSupabaseClient();
   const { error } = await supabase.from("analysis_results").insert({
     project_id: projectId,
     analysis,
+    token_usage: tokenUsage ?? null,
+    cost_usd: tokenUsage?.cost_usd ?? null,
     generated_at: new Date().toISOString(),
   });
 
@@ -272,6 +284,28 @@ export async function saveAnalysisResult(
     console.error("saveAnalysisResult Supabase error:", JSON.stringify(error, null, 2));
     throw new Error(`saveAnalysisResult failed: ${error.message} (code: ${error.code})`);
   }
+}
+
+export async function getAnalysisCostStats(): Promise<AnalysisCostStats> {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from("analysis_results")
+    .select("cost_usd, generated_at")
+    .not("cost_usd", "is", null)
+    .order("generated_at", { ascending: false });
+
+  if (error) throw error;
+
+  const rows = (data ?? []) as { cost_usd: number; generated_at: string }[];
+  const total = rows.reduce((sum, r) => sum + r.cost_usd, 0);
+
+  return {
+    total_analyses: rows.length,
+    total_cost_usd: total,
+    average_cost_usd: rows.length > 0 ? total / rows.length : 0,
+    most_recent_cost_usd: rows[0]?.cost_usd ?? null,
+    most_recent_at: rows[0]?.generated_at ?? null,
+  };
 }
 
 export async function getCustomerLogoByName(

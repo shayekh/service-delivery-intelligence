@@ -21,6 +21,7 @@ import { NextQuarterFocusTable } from "@/components/report/NextQuarterFocusTable
 import { ManagementAttentionCards } from "@/components/report/ManagementAttentionCards";
 import { ItsmMaturitySection } from "@/components/report/ItsmMaturitySection";
 import { ClosingNoteCard } from "@/components/report/ClosingNoteCard";
+import { FocusLensBar } from "@/components/report/FocusLensBar";
 
 export const dynamic = "force-dynamic";
 
@@ -112,6 +113,7 @@ export default async function ProjectDetailPage({
   return (
     <div className="min-h-screen bg-gray-50">
       <ReportHeader project={project} analysis={analysis} />
+      <FocusLensBar analysis={analysis} />
 
       <div className="flex">
         <ReportSidebar />

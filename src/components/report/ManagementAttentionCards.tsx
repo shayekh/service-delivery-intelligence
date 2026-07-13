@@ -28,6 +28,8 @@ export function ManagementAttentionCards({
           {data.map((item, i) => (
             <div
               key={i}
+              data-focus-item-id={`attn-${i}`}
+              style={{ scrollMarginTop: "calc(var(--report-header-height, 0px) + var(--focus-lens-bar-height, 0px))" }}
               className={cn(
                 "rounded-lg border border-slate-200 bg-white p-4 border-l-4",
                 URGENCY_BORDER[item.urgency]

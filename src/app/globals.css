@@ -8,6 +8,29 @@
   }
 }
 
+@keyframes focus-lens-flash {
+  0% {
+    outline: 2px solid rgba(59, 130, 246, 0.75);
+    outline-offset: 3px;
+    background-color: rgba(59, 130, 246, 0.06);
+  }
+  70% {
+    outline: 2px solid rgba(59, 130, 246, 0.15);
+    outline-offset: 3px;
+    background-color: transparent;
+  }
+  100% {
+    outline: 2px solid transparent;
+    outline-offset: 3px;
+    background-color: transparent;
+  }
+}
+
+.focus-lens-active {
+  animation: focus-lens-flash 2s ease-out forwards;
+  border-radius: 6px;
+}
+
 @layer base {
   :root {
     --background: oklch(1 0 0);

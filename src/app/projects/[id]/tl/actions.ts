@@ -1,6 +1,7 @@
 "use server";
 
 import { generateAnalysis } from "@/lib/agent";
+import { generateReportPdf } from "@/lib/pdf";
 import {
   clearProjectError,
   getPMAnswers,
@@ -34,10 +35,16 @@ export async function submitTlAnswersAction(
     if (bothSubmitted) {
       await updateProjectStatus(saved.project_id, "processing");
       try {
-        const analysis = await generateAnalysis(saved.project_id);
-        await saveAnalysisResult(saved.project_id, analysis);
+        const { analysis, tokenUsage } = await generateAnalysis(saved.project_id);
+        await saveAnalysisResult(saved.project_id, analysis, tokenUsage);
         await clearProjectError(saved.project_id);
         await updateProjectStatus(saved.project_id, "ready");
+        // Generate PDF immediately after analysis — best-effort, does not block ready status
+        try {
+          await generateReportPdf(saved.project_id);
+        } catch (pdfErr) {
+          console.error("submitTlAnswersAction: PDF generation failed (analysis still saved, web report available):", pdfErr);
+        }
       } catch (err) {
         console.error("submitTlAnswersAction: AI analysis failed:", err);
         await setProjectError(

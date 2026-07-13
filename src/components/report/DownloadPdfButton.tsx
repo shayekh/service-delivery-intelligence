@@ -3,11 +3,24 @@
 import { useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 
-export function DownloadPdfButton({ projectId }: { projectId: string }) {
+export function DownloadPdfButton({
+  projectId,
+  pdfUrl,
+}: {
+  projectId: string;
+  pdfUrl: string | null;
+}) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleClick() {
+    // If PDF was pre-generated, open it directly with no server round-trip
+    if (pdfUrl) {
+      window.open(pdfUrl, "_blank");
+      return;
+    }
+
+    // Fallback: PDF generation failed at analysis time — trigger on-demand generation
     setIsLoading(true);
     setError(null);
     try {

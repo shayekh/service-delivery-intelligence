@@ -1,7 +1,26 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Service Delivery Intelligence — CLAUDE.md (Web App Version)
 
 > Persistent memory for this project.
 > Read this before doing anything. Update when plan evolves.
+
+---
+
+## Commands
+
+```bash
+npm run dev      # Start dev server (localhost:3000)
+npm run build    # Production build (run to check TypeScript errors)
+npm run lint     # ESLint
+npm run start    # Start production server (after build)
+```
+
+No test suite exists. TypeScript errors surface via `npm run build`.
+
+**PowerShell note:** use `curl.exe` (not `curl`) when testing API routes — `curl` is aliased to `Invoke-WebRequest` in PowerShell and does not accept `-H` the same way.
 
 ---
 
@@ -114,13 +133,14 @@ AI AGENT (triggers automatically once BOTH pm_answers and tl_answers exist)
 → Step 3: Generate S10–S16
 → Step 4: Self-check — verify all placeholders filled
 → analysis saved to Supabase
-→ project status: "Generating PDF"
+→ project status: "ready"
 
-PDF GENERATION (triggers after agent)
-→ 16-section Quarterly Service Delivery Report generated
-→ Saved to Supabase Storage bucket "reports"
-→ projects.pdf_url stores the PDF public URL
-→ project status: "Ready"
+PDF GENERATION (triggers automatically right after agent, same server action)
+→ 16-section Quarterly Service Delivery Report generated immediately after generateAnalysis() succeeds
+→ Saved to Supabase Storage bucket "reports" at path `{projectId}/report.pdf` (upsert: true — overwrites on regeneration)
+→ projects.pdf_url stores the public URL
+→ PDF generation is best-effort: if it fails, status is still "ready" and the web report is viewable; the PDF API route (/api/projects/[id]/pdf) will attempt on-demand generation as a fallback
+→ "Download PDF" button opens projects.pdf_url directly if set (no generation delay); falls back to the API route only if pdf_url is null
 
 EMAIL
 → Scheduler (Vercel Cron, daily) checks settings.delivery_cadence + send_on_day
@@ -726,8 +746,8 @@ flagged inline in TL questionnaire in real time.
 - Both Assign PM and Assign TL are mandatory when creating a project
 - TL sees all projects on dashboard and can open any awaiting TL submission
 - AI triggers only when BOTH have submitted
-- PDF generated after AI analysis completes — stored in Supabase Storage bucket "reports"
-- projects.pdf_url stores the PDF public URL
+- PDF is generated automatically right after generateAnalysis() succeeds (in pm/actions.ts and tl/actions.ts), not on download-click — stored in Supabase Storage bucket "reports" at `{projectId}/report.pdf`
+- projects.pdf_url stores the PDF public URL; Download PDF button opens it directly if set, falls back to on-demand generation if null
 - All free-text answers described naturally — AI parses into structured tables
 - Date format: DD Month, YYYY (e.g. 28 June, 2026)
 - Status badges: Green / Amber / Red — inline, never on separate line
@@ -924,7 +944,65 @@ service-delivery-intelligence/
 
 ---
 
+## Analysis Mode
+
+`projects.analysis_mode` is a text column (check-constrained to `'deterministic' | 'non_deterministic'`, default `'deterministic'`).
+
+The New Project modal exposes a two-card selector. **Deterministic** is selected by default and is the only active option. **Non-Deterministic** is rendered as a disabled card with a "Coming Soon" badge — it cannot be clicked or selected.
+
+**No pipeline branching exists yet.** `agent.ts` / `generateAnalysis()` ignores `analysis_mode` entirely. The column is captured on project creation solely to avoid a schema migration later when Tier 2 (agentic, tool-use loop) analysis ships.
+
+**DB migration (must be run in Supabase before deploying):**
+```sql
+alter table projects
+  add column if not exists analysis_mode text not null default 'deterministic'
+  check (analysis_mode in ('deterministic', 'non_deterministic'));
+```
+
+---
+
+## Token Cost Tracking
+
+Every AI analysis run captures token usage and cost from the Anthropic API response and persists it to Supabase.
+
+**Where cost data lives:**
+- `analysis_results` table: two new columns — `token_usage` (jsonb) and `cost_usd` (float8)
+- `token_usage` stores `{ model, input_tokens, output_tokens, total_tokens, cache_creation_input_tokens, cache_read_input_tokens, cost_usd }`
+- Older rows (before this feature) will have `NULL` in both columns — they are excluded from aggregate stats
+
+**How cost is calculated (`src/lib/agent.ts`):**
+- Pricing config is in the `MODEL_PRICING` constant at the top of `agent.ts` — update it there if Anthropic changes rates
+- Formula: `(input / 1M × $3.00) + (output / 1M × $15.00) + (cache_write / 1M × $3.75) + (cache_read / 1M × $0.30)`
+- Cache tokens extracted via `usage as unknown as Record<string, number>` because the SDK's `Usage` type doesn't include cache fields in its TypeScript definition even though they appear at runtime when caching is active
+
+**Where it surfaces:**
+- Console log on every run: `[generateAnalysis] tokens — input: X, output: Y, total: Z, cost_usd: $N`
+- No UI currently — the tracking pipeline is live and persisting data to `analysis_results`, but there is no page rendering it yet. `getAnalysisCostStats()` in `src/lib/db.ts` and a ready-made card component at `src/components/settings/AnalysisCostCard.tsx` exist and are unused, pending a decision on where to surface them.
+
+**Migration required (run in Supabase before deploying):**
+```sql
+alter table analysis_results
+  add column if not exists token_usage jsonb,
+  add column if not exists cost_usd float8;
+```
+
+**Future note:** If the pipeline ever moves to multiple API calls per analysis (e.g. Tier 2 agentic with chained calls), `calculateCost()` in `agent.ts` should be called per-call and the results summed before passing the final `TokenUsage` to `saveAnalysisResult`. The current schema stores one `token_usage` blob per analysis row — it would need to become an array or a separate `token_usage_events` table if per-call granularity matters.
+
+---
+
 ## Last Updated
+July 6, 2026 — Token cost tracking added (additive instrumentation only, no prompt/model/max_tokens changes):
+- `analysis_results` table: new `token_usage` (jsonb) and `cost_usd` (float8) columns
+- `src/lib/agent.ts`: `MODEL_PRICING` config, `calculateCost()`, usage capture after API call, console logging; `generateAnalysis` now returns `{ analysis, tokenUsage }`
+- `src/lib/db.ts`: `saveAnalysisResult` updated to accept optional `TokenUsage`; new `getAnalysisCostStats()` for Settings page aggregates
+- `src/components/settings/AnalysisCostCard.tsx`: new component (unused/dormant) — exists for future use, not currently rendered anywhere
+- `src/app/(app)/settings/page.tsx`: no UI change — cost card was added then removed; page unchanged from pre-tracking state
+- Both action files (`pm/actions.ts`, `tl/actions.ts`) updated to destructure `{ analysis, tokenUsage }` from `generateAnalysis`
+- DB migration SQL documented above — must be run in Supabase before deploying
+
+---
+
+## Last Updated (previous)
 July 2, 2026 — Full sync pass plus code-verified correction pass:
 
 **Sync pass:** corrected all remaining stale step/section counts (PM 11 steps, TL 9
