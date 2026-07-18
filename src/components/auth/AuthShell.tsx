@@ -6,7 +6,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen flex-col bg-slate-900 text-white">
       <header className="flex items-center justify-between px-6 py-4 sm:px-10">
         <Link href="/login" className="text-lg font-semibold tracking-wide">
-          SDI
+          Service Delivery Intelligence
         </Link>
         <nav className="flex items-center gap-6 text-sm text-slate-300">
           <a href="#" className="hover:text-white">

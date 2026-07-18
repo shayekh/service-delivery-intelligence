@@ -66,7 +66,7 @@ export function FocusLensBar({ analysis }: { analysis: AnalysisJson }) {
       >
         <div className="flex flex-wrap items-center gap-2">
           <span className="mr-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Focus lens
+            Highlights
           </span>
 
           {lenses.map((lens) => {

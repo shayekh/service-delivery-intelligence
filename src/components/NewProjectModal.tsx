@@ -370,7 +370,7 @@ export function NewProjectModal({
                 type="button"
                 className="rounded-lg border-2 border-blue-600 bg-blue-50 px-3 py-3 text-left transition-colors"
               >
-                <span className="block text-sm font-semibold text-blue-700">Deterministic</span>
+                <span className="block text-sm font-semibold text-blue-700">Standard</span>
                 <span className="mt-0.5 block text-xs text-slate-500">
                   Structured, rule-based analysis with consistent, reproducible outputs.
                 </span>
@@ -379,9 +379,9 @@ export function NewProjectModal({
                 <span className="absolute right-2 top-2 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                   Coming Soon
                 </span>
-                <span className="block pr-20 text-sm font-semibold text-slate-400">Non-Deterministic</span>
+                <span className="block pr-20 text-sm font-semibold text-slate-400">Investigative</span>
                 <span className="mt-0.5 block text-xs text-slate-400">
-                  Agentic AI analysis with historical trend awareness.
+                  Agentic AI analysis with historical trend awareness. Autonomously investigates gaps, conflicts, and patterns across reviews.
                 </span>
               </div>
             </div>
