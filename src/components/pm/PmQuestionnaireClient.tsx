@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QuestionStep } from "@/components/QuestionStep";
 import { ProgressBar } from "@/components/ProgressBar";
@@ -214,7 +214,8 @@ function StepFooter({
   return (
     <>
       {onPrevious ? (
-        <Button variant="outline" className="rounded-lg px-4 py-2" onClick={onPrevious}>
+        <Button variant="outline" className="flex items-center gap-2 rounded-lg px-4 py-2" onClick={onPrevious}>
+          <ArrowLeft className="h-4 w-4" />
           Previous
         </Button>
       ) : (
@@ -226,7 +227,7 @@ function StepFooter({
       <Button
         disabled={disabled}
         className={cn(
-          "rounded-lg px-6 py-2 text-white",
+          "flex items-center gap-2 rounded-lg px-6 py-2 text-white",
           nextColor === "green"
             ? "bg-green-600 hover:bg-green-600/90"
             : "bg-blue-600 hover:bg-blue-600/90"
@@ -234,6 +235,7 @@ function StepFooter({
         onClick={onNext}
       >
         {nextLabel}
+        {nextColor !== "green" && <ArrowRight className="h-4 w-4" />}
       </Button>
     </>
   );
