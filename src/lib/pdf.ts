@@ -540,7 +540,24 @@ async function drawCoverPage(
   if (bgBytes) {
     try {
       const bgImage = await builder.doc.embedPng(bgBytes);
-      page.drawImage(bgImage, { x: 0, y: 0, width: PAGE_WIDTH, height: PAGE_HEIGHT });
+      // Scale to cover the page without stretching (object-fit: cover)
+      const imgAspect = bgImage.width / bgImage.height;
+      const pageAspect = PAGE_WIDTH / PAGE_HEIGHT;
+      let drawW: number, drawH: number, drawX: number, drawY: number;
+      if (imgAspect > pageAspect) {
+        // Image is wider — fit height, crop sides
+        drawH = PAGE_HEIGHT;
+        drawW = drawH * imgAspect;
+        drawX = (PAGE_WIDTH - drawW) / 2;
+        drawY = 0;
+      } else {
+        // Image is taller — fit width, crop top/bottom
+        drawW = PAGE_WIDTH;
+        drawH = drawW / imgAspect;
+        drawX = 0;
+        drawY = (PAGE_HEIGHT - drawH) / 2;
+      }
+      page.drawImage(bgImage, { x: drawX, y: drawY, width: drawW, height: drawH });
       console.log("[PDF cover] cover_bg.png embedded and drawn successfully");
     } catch (err) {
       console.error("[PDF cover] embedPng failed, falling back to solid navy:", err);
