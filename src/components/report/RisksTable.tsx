@@ -35,15 +35,15 @@ export function RisksTable({
                 data-focus-item-id={`risk-${i}`}
                 style={{ scrollMarginTop: "calc(var(--report-header-height, 0px) + var(--focus-lens-bar-height, 0px))" }}
               >
-                <td className="py-2 pr-4">
+                <td className="py-3 pr-4">
                   <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
                     {row.type}
                   </span>
                 </td>
-                <td className="py-2 pr-4 text-slate-700">{row.description}</td>
-                <td className={cn("py-2 pr-4", IMPACT_COLOR[row.impact])}>{row.impact}</td>
-                <td className="py-2 pr-4 text-slate-600">{row.owner}</td>
-                <td className="py-2 text-slate-600">{row.mitigation}</td>
+                <td className="py-3 pr-4 text-slate-700">{row.description}</td>
+                <td className={cn("py-3 pr-4", IMPACT_COLOR[row.impact])}>{row.impact}</td>
+                <td className="py-3 pr-4 text-slate-600">{row.owner}</td>
+                <td className="py-3 text-slate-600">{row.mitigation}</td>
               </tr>
             ))}
           </tbody>

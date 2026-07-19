@@ -30,14 +30,14 @@ export function ReportQualityHealthTable({
           <tbody className="divide-y divide-slate-100">
             {data.map((row, i) => (
               <tr key={i}>
-                <td className="py-2 pr-4 font-medium text-slate-800">{row.area}</td>
-                <td className="py-2 pr-4 text-slate-600">{row.observation}</td>
-                <td className="py-2 pr-4">
+                <td className="py-3 pr-4 font-medium text-slate-800">{row.area}</td>
+                <td className="py-3 pr-4 text-slate-600">{row.observation}</td>
+                <td className="py-3 pr-4">
                   <span className={cn("rounded px-2 py-0.5 text-xs font-medium", STATUS_BADGE[row.status])}>
                     {row.status}
                   </span>
                 </td>
-                <td className="py-2 text-slate-600">{row.improvement_action}</td>
+                <td className="py-3 text-slate-600">{row.improvement_action}</td>
               </tr>
             ))}
           </tbody>

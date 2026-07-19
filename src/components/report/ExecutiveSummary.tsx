@@ -15,11 +15,15 @@ export function ExecutiveSummary({ data }: { data: AnalysisJson["section_synthes
     data.next_quarter_preview,
   ].filter(Boolean);
 
-  const prose = parts.join(" ");
-
   return (
     <SectionCard id="section-01" number="01" title="Executive Summary" tag="submission">
-      <p className="leading-relaxed text-slate-700">{prose || <NA />}</p>
+      {parts.length === 0 ? <NA /> : (
+        <div className="space-y-4">
+          {parts.map((text, i) => (
+            <p key={i} className="leading-relaxed text-slate-700">{text}</p>
+          ))}
+        </div>
+      )}
     </SectionCard>
   );
 }

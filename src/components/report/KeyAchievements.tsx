@@ -11,7 +11,7 @@ export function KeyAchievements({
       {!data?.length ? (
         <NA />
       ) : (
-        <ol className="space-y-3">
+        <ol className="space-y-4">
           {data.map((item, i) => (
             <li key={i} className="flex gap-3">
               <span className="mt-0.5 text-sm font-bold text-blue-600">{String(i + 1).padStart(2, "0")}.</span>

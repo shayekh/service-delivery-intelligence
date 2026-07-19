@@ -22,6 +22,12 @@ function StatusPill({ status }: { status: Project["status"] }) {
   );
 }
 
+function parsePreparedBy(raw: string) {
+  const match = raw.match(/^(.+?),\s*Product Manager,\s*(.+?),\s*Tech Lead$/);
+  if (match) return { pm: match[1].trim(), tl: match[2].trim() };
+  return null;
+}
+
 export function ReportHeader({
   project,
   analysis,
@@ -30,6 +36,7 @@ export function ReportHeader({
   analysis: AnalysisJson | null;
 }) {
   const preparedBy = analysis?.report_meta.prepared_by ?? "—";
+  const parsed = parsePreparedBy(preparedBy);
   const headerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -60,9 +67,25 @@ export function ReportHeader({
           <h1 className="mt-1 text-3xl font-bold text-slate-800">
             {project.project_name}
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {project.quarter} · Prepared by {preparedBy}
-          </p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+            <span>{project.quarter}</span>
+            <span className="text-slate-300">·</span>
+            {parsed ? (
+              <>
+                <span className="flex items-center gap-1.5">
+                  {parsed.pm}
+                  <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-500">PM</span>
+                </span>
+                <span className="text-slate-300">·</span>
+                <span className="flex items-center gap-1.5">
+                  {parsed.tl}
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">TL</span>
+                </span>
+              </>
+            ) : (
+              <span>Prepared by {preparedBy}</span>
+            )}
+          </div>
         </div>
 
         <div className="flex shrink-0 items-start gap-3 pt-1">

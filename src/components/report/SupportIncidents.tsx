@@ -32,9 +32,9 @@ export function SupportIncidents({
             </colgroup>
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-xs uppercase text-slate-400">
-                <th className="px-3 py-2 text-left font-medium">Category</th>
-                <th className="px-3 py-2 text-center font-medium">Count</th>
-                <th className="px-3 py-2 text-left font-medium">Summary</th>
+                <th className="px-3 py-3 text-left font-medium">Category</th>
+                <th className="px-3 py-3 text-center font-medium">Count</th>
+                <th className="px-3 py-3 text-left font-medium">Summary</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -42,11 +42,11 @@ export function SupportIncidents({
                 const val = data.ticket_counts[key];
                 return (
                   <tr key={key}>
-                    <td className="px-3 py-2 font-medium text-slate-700">{label}</td>
-                    <td className="px-3 py-2 text-center text-slate-800">
+                    <td className="px-3 py-3 font-medium text-slate-700">{label}</td>
+                    <td className="px-3 py-3 text-center text-slate-800">
                       {val?.count || "—"}
                     </td>
-                    <td className="px-3 py-2 text-slate-600">
+                    <td className="px-3 py-3 text-slate-600">
                       {val?.summary || "—"}
                     </td>
                   </tr>
