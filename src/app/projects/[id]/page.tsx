@@ -22,6 +22,7 @@ import { ManagementAttentionCards } from "@/components/report/ManagementAttentio
 import { ItsmMaturitySection } from "@/components/report/ItsmMaturitySection";
 import { ClosingNoteCard } from "@/components/report/ClosingNoteCard";
 import { FocusLensBar } from "@/components/report/FocusLensBar";
+import { ScrollToTopButton } from "@/components/report/ScrollToTopButton";
 
 export const dynamic = "force-dynamic";
 
@@ -141,6 +142,7 @@ export default async function ProjectDetailPage({
           </div>
         </main>
       </div>
+      <ScrollToTopButton />
     </div>
   );
 }

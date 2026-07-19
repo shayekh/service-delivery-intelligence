@@ -30,7 +30,9 @@ export function Sidebar({ user }: { user: User }) {
 
   return (
     <aside className="flex h-screen w-60 shrink-0 flex-col bg-slate-900 text-white">
-      <div className="px-6 py-5 text-lg font-semibold tracking-wide">SDI</div>
+      <div className="px-6 py-5 text-sm font-semibold leading-tight tracking-wide">
+        Service Delivery<br />Intelligence
+      </div>
 
       <nav className="flex-1 space-y-1 px-3">
         {NAV_ITEMS.map((item) => {
