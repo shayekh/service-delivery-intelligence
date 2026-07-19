@@ -3,7 +3,8 @@
 import { useEffect, useRef } from "react";
 import { DownloadPdfButton } from "@/components/report/DownloadPdfButton";
 import { SendReportButton } from "@/components/report/SendReportButton";
-import type { AnalysisJson, Project } from "@/types";
+import { TokenCostButton } from "@/components/report/TokenCostButton";
+import type { AnalysisJson, Project, TokenUsage } from "@/types";
 
 function StatusPill({ status }: { status: Project["status"] }) {
   if (status === "sent") {
@@ -31,9 +32,13 @@ function parsePreparedBy(raw: string) {
 export function ReportHeader({
   project,
   analysis,
+  tokenUsage,
+  costUsd,
 }: {
   project: Project;
   analysis: AnalysisJson | null;
+  tokenUsage?: TokenUsage | null;
+  costUsd?: number | null;
 }) {
   const preparedBy = analysis?.report_meta.prepared_by ?? "—";
   const parsed = parsePreparedBy(preparedBy);
@@ -89,6 +94,7 @@ export function ReportHeader({
         </div>
 
         <div className="flex shrink-0 items-start gap-3 pt-1">
+          <TokenCostButton tokenUsage={tokenUsage ?? null} costUsd={costUsd ?? null} />
           <DownloadPdfButton projectId={project.id} pdfUrl={project.pdf_url} />
           <SendReportButton
             projectId={project.id}

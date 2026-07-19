@@ -60,13 +60,14 @@ export async function POST(
     );
   }
 
-  const analysis = await getAnalysisResult(id);
-  if (!analysis) {
+  const analysisResult = await getAnalysisResult(id);
+  if (!analysisResult) {
     return NextResponse.json(
       { error: "Analysis data not found." },
       { status: 500 }
     );
   }
+  const analysis = analysisResult.analysis;
 
   try {
     await sendReportEmail({

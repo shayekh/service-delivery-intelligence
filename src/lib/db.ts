@@ -324,20 +324,31 @@ export async function getCustomerLogoByName(
   return (data as CustomerLogo) ?? null;
 }
 
+export interface AnalysisResultWithMeta {
+  analysis: AnalysisJson;
+  token_usage: TokenUsage | null;
+  cost_usd: number | null;
+}
+
 export async function getAnalysisResult(
   projectId: string
-): Promise<AnalysisJson | null> {
+): Promise<AnalysisResultWithMeta | null> {
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
     .from("analysis_results")
-    .select("analysis")
+    .select("analysis, token_usage, cost_usd")
     .eq("project_id", projectId)
     .order("generated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
   if (error) throw error;
-  return (data?.analysis as AnalysisJson) ?? null;
+  if (!data?.analysis) return null;
+  return {
+    analysis: data.analysis as AnalysisJson,
+    token_usage: (data.token_usage as TokenUsage) ?? null,
+    cost_usd: (data.cost_usd as number) ?? null,
+  };
 }
 
 export async function getAnalysisResultAdmin(

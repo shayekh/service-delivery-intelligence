@@ -80,10 +80,10 @@ export default async function ProjectDetailPage({
     );
   }
 
-  const analysis = await getAnalysisResult(id);
+  const analysisResult = await getAnalysisResult(id);
 
   // Error state: ready but analysis missing
-  if (!analysis) {
+  if (!analysisResult) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-8 text-center">
         <p className="text-xs font-semibold uppercase tracking-wider text-red-500">
@@ -108,12 +108,13 @@ export default async function ProjectDetailPage({
     );
   }
 
+  const analysis = analysisResult.analysis;
   const ss = analysis.section_synthesis;
   const ai = analysis.ai_generated;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <ReportHeader project={project} analysis={analysis} />
+      <ReportHeader project={project} analysis={analysis} tokenUsage={analysisResult.token_usage} costUsd={analysisResult.cost_usd} />
       <FocusLensBar analysis={analysis} />
 
       <div className="flex">

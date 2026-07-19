@@ -9,6 +9,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## Design System
+
+All UI and PDF design decisions (colors, typography, spacing, component patterns) are documented in:
+
+**[`docs/design-system.md`](docs/design-system.md)**
+
+Read this before touching any visual/UI code. Key constants to know:
+- Web brand accent: `blue-600` (interactive), `#741B47` (PDF section headers)
+- Neutral system: Tailwind `slate` scale throughout
+- PDF color constants: `SECTION_COLOR`, `NAVY`, `GREY_BODY`, `GREY_FOOTER` — all in `src/lib/pdf.ts`
+- Section card wrapper: `src/components/report/SectionCard.tsx` — every report section uses this
+
+---
+
 ## Commands
 
 ```bash

@@ -679,8 +679,9 @@ export async function generateReportPdf(projectId: string): Promise<string> {
   if (!project) throw new Error(`Project ${projectId} not found`);
   console.log(`=== GENERATING NEW PDF for project: ${project.project_name} ===`);
 
-  const analysis = await getAnalysisResult(projectId);
-  if (!analysis) throw new Error(`No analysis_results found for project ${projectId}`);
+  const analysisResult = await getAnalysisResult(projectId);
+  if (!analysisResult) throw new Error(`No analysis_results found for project ${projectId}`);
+  const analysis = analysisResult.analysis;
 
   const customerLogo = await getCustomerLogoByName(project.customer_name);
 
