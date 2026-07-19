@@ -17,8 +17,8 @@ export function SectionCard({
   children: ReactNode;
 }) {
   return (
-    <div id={id} className="rounded-xl border border-slate-200 bg-white p-6" style={{ scrollMarginTop: "calc(var(--report-header-height, 0px) + var(--focus-lens-bar-height, 0px))" }}>
-      <div className="mb-4 flex items-center gap-3">
+    <div id={id} className="rounded-xl border border-slate-200 bg-white p-7" style={{ scrollMarginTop: "calc(var(--report-header-height, 0px) + var(--focus-lens-bar-height, 0px))" }}>
+      <div className="mb-5 flex items-center gap-3">
         <h2 className="text-lg font-bold text-slate-800">
           {number} · {title}
         </h2>

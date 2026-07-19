@@ -27,7 +27,7 @@ export function CustomerFeedbackSection({
         <NA />
       ) : (
         <div>
-          <dl className="space-y-3">
+          <dl className="space-y-4">
             {FIELDS.map(({ key, label }) => {
               const val = key !== "relationship_health" ? data[key] : null;
               return (
