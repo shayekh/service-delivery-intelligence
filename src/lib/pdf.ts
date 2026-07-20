@@ -1,4 +1,4 @@
-﻿import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
+﻿import { PDFDocument, PDFFont, PDFImage, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import type { RGB } from "pdf-lib";
 import fs from "fs";
 import path from "path";
@@ -79,6 +79,9 @@ function safeDrawText(
   page.drawText(sanitizeText(text), options);
 }
 
+const HEADER_LOGO_H = 36;
+const HEADER_LOGO_TOP = PAGE_HEIGHT - 14;
+
 class PdfBuilder {
   doc: PDFDocument;
   regular: PDFFont;
@@ -89,6 +92,7 @@ class PdfBuilder {
   pageNumber = 0;
   projectName: string;
   period: string;
+  seliseLogo: PDFImage | null = null;
 
   private constructor(
     doc: PDFDocument,
@@ -111,14 +115,39 @@ class PdfBuilder {
     const regular = await doc.embedFont(StandardFonts.Helvetica);
     const bold = await doc.embedFont(StandardFonts.HelveticaBold);
     const italic = await doc.embedFont(StandardFonts.HelveticaOblique);
-    return new PdfBuilder(doc, regular, bold, italic, projectName, period);
+    const builder = new PdfBuilder(doc, regular, bold, italic, projectName, period);
+    const logoBytes = readPublicAsset("assets/selise_logo.png");
+    if (logoBytes) {
+      try {
+        builder.seliseLogo = await doc.embedPng(logoBytes);
+      } catch {
+        // logo embed failed — skip silently
+      }
+    }
+    return builder;
   }
 
   addContentPage(): void {
     this.page = this.doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
     this.pageNumber += 1;
-    this.y = PAGE_HEIGHT - MARGIN;
+    // Start content below header logo with generous gap
+    this.y = HEADER_LOGO_TOP - HEADER_LOGO_H - 24;
+    this.drawPageHeader();
     this.drawFooter();
+  }
+
+  private drawPageHeader(): void {
+    if (this.seliseLogo) {
+      const aspect = this.seliseLogo.width / this.seliseLogo.height;
+      const logoW = HEADER_LOGO_H * aspect;
+      this.page.drawImage(this.seliseLogo, {
+        x: MARGIN,
+        y: HEADER_LOGO_TOP - HEADER_LOGO_H,
+        width: logoW,
+        height: HEADER_LOGO_H,
+      });
+    }
+
   }
 
   private drawFooter(): void {
