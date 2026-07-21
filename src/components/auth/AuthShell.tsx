@@ -31,7 +31,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
               Service Delivery Intelligence
             </h1>
             <p className="max-w-md text-lg text-slate-300">
-              Structured quarterly reviews for Product Managers and Tech
+              Agentic quarterly reviews for Product Managers and Tech
               Leads — AI-analysed and delivered automatically.
             </p>
           </div>
