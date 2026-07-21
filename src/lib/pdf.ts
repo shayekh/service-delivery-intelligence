@@ -1,5 +1,6 @@
 ﻿import { PDFDocument, PDFFont, PDFImage, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import type { RGB } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
 import fs from "fs";
 import path from "path";
 import {
@@ -87,6 +88,8 @@ class PdfBuilder {
   regular: PDFFont;
   bold: PDFFont;
   italic: PDFFont;
+  exoBold: PDFFont | null = null;
+  exoRegular: PDFFont | null = null;
   page!: PDFPage;
   y = 0;
   pageNumber = 0;
@@ -112,6 +115,7 @@ class PdfBuilder {
 
   static async create(projectName: string, period: string): Promise<PdfBuilder> {
     const doc = await PDFDocument.create();
+    doc.registerFontkit(fontkit);
     const regular = await doc.embedFont(StandardFonts.Helvetica);
     const bold = await doc.embedFont(StandardFonts.HelveticaBold);
     const italic = await doc.embedFont(StandardFonts.HelveticaOblique);
@@ -124,6 +128,26 @@ class PdfBuilder {
         // logo embed failed — skip silently
       }
     }
+
+    // Cover page title/subtitle font. Falls back to Helvetica (already set
+    // above) if the Exo font files aren't present in public/fonts.
+    const exoBoldBytes = readPublicAsset("fonts/Exo-Bold.ttf");
+    if (exoBoldBytes) {
+      try {
+        builder.exoBold = await doc.embedFont(exoBoldBytes);
+      } catch (err) {
+        console.error("[PDF] Exo-Bold.ttf embed failed, falling back to Helvetica:", err);
+      }
+    }
+    const exoRegularBytes = readPublicAsset("fonts/Exo-Regular.ttf");
+    if (exoRegularBytes) {
+      try {
+        builder.exoRegular = await doc.embedFont(exoRegularBytes);
+      } catch (err) {
+        console.error("[PDF] Exo-Regular.ttf embed failed, falling back to Helvetica:", err);
+      }
+    }
+
     return builder;
   }
 
@@ -212,18 +236,18 @@ class PdfBuilder {
     this.ensureSpace(100);
     this.y -= 10;
     const numText = `${number}.0`;
-    const numWidth = this.bold.widthOfTextAtSize(numText, 14);
+    const numWidth = this.bold.widthOfTextAtSize(numText, 18);
     safeDrawText(this.page, numText, {
       x: MARGIN,
       y: this.y,
-      size: 14,
+      size: 18,
       font: this.bold,
       color: SECTION_COLOR,
     });
     safeDrawText(this.page, title, {
       x: MARGIN + numWidth + 8,
       y: this.y,
-      size: 14,
+      size: 18,
       font: this.bold,
       color: SECTION_COLOR,
     });
@@ -234,7 +258,7 @@ class PdfBuilder {
     text: string | null | undefined,
     options: { size?: number; bold?: boolean; italic?: boolean; color?: RGB; indent?: number } = {}
   ): void {
-    const size = options.size ?? 10;
+    const size = options.size ?? 12;
     const font = options.bold ? this.bold : options.italic ? this.italic : this.regular;
     const color = options.color ?? GREY_BODY;
     const indent = options.indent ?? 0;
@@ -553,154 +577,121 @@ function ticketRows(ticketCounts: AnalysisJson["section_synthesis"]["s6_support_
   ]);
 }
 
+const COVER_BAR_COLOR = rgb(0.24, 0.25, 0.26);
+const COVER_TITLE_COLOR = rgb(0.32, 0.33, 0.35);
+const COVER_SUBTITLE_COLOR = rgb(0.42, 0.43, 0.45);
+const COVER_ADDRESS_COLOR = rgb(0.35, 0.36, 0.38);
+
 async function drawCoverPage(
   builder: PdfBuilder,
   projectName: string,
   cadence: string,
-  customerName: string,
+  _customerName: string,
   period: string,
-  dateGenerated: string,
-  customerLogoUrl: string | null
+  _dateGenerated: string,
+  _customerLogoUrl: string | null
 ): Promise<void> {
   const page = builder.doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+
+  // White page background (default), banded layout: white top / dark bar /
+  // image / dark bar / white content area with title, subtitle, and the
+  // static SELISE address block.
+  const barHeight = 6;
+  const imageTop = PAGE_HEIGHT - 90;
+  const imageBottom = 290;
+  const imageHeight = imageTop - imageBottom;
 
   const bgBytes = readPublicAsset("assets/cover_bg.png");
   console.log("[PDF cover] cover_bg.png read result:", bgBytes ? `${bgBytes.length} bytes` : "null (file not found)");
   if (bgBytes) {
     try {
       const bgImage = await builder.doc.embedPng(bgBytes);
-      // Scale to cover the page without stretching (object-fit: cover)
+      // Fill the image band edge-to-edge (object-fit: cover), cropping
+      // top/bottom or sides as needed to preserve aspect ratio.
       const imgAspect = bgImage.width / bgImage.height;
-      const pageAspect = PAGE_WIDTH / PAGE_HEIGHT;
+      const bandAspect = PAGE_WIDTH / imageHeight;
       let drawW: number, drawH: number, drawX: number, drawY: number;
-      if (imgAspect > pageAspect) {
-        // Image is wider — fit height, crop sides
-        drawH = PAGE_HEIGHT;
+      if (imgAspect > bandAspect) {
+        drawH = imageHeight;
         drawW = drawH * imgAspect;
         drawX = (PAGE_WIDTH - drawW) / 2;
-        drawY = 0;
+        drawY = imageBottom;
       } else {
-        // Image is taller — fit width, crop top/bottom
         drawW = PAGE_WIDTH;
         drawH = drawW / imgAspect;
         drawX = 0;
-        drawY = (PAGE_HEIGHT - drawH) / 2;
+        drawY = imageBottom - (drawH - imageHeight) / 2;
       }
+      page.drawRectangle({ x: 0, y: imageBottom, width: PAGE_WIDTH, height: imageHeight, color: WHITE });
       page.drawImage(bgImage, { x: drawX, y: drawY, width: drawW, height: drawH });
       console.log("[PDF cover] cover_bg.png embedded and drawn successfully");
     } catch (err) {
       console.error("[PDF cover] embedPng failed, falling back to solid navy:", err);
-      page.drawRectangle({ x: 0, y: 0, width: PAGE_WIDTH, height: PAGE_HEIGHT, color: NAVY });
+      page.drawRectangle({ x: 0, y: imageBottom, width: PAGE_WIDTH, height: imageHeight, color: NAVY });
     }
   } else {
     console.log("[PDF cover] cover_bg.png not found, using solid navy fallback");
-    page.drawRectangle({ x: 0, y: 0, width: PAGE_WIDTH, height: PAGE_HEIGHT, color: NAVY });
+    page.drawRectangle({ x: 0, y: imageBottom, width: PAGE_WIDTH, height: imageHeight, color: NAVY });
   }
 
-  const logoBytes = readPublicAsset("assets/selise_logo.png");
-  if (logoBytes) {
-    try {
-      const logoImage = await builder.doc.embedPng(logoBytes);
-      const logoWidth = 120;
-      const scale = logoWidth / logoImage.width;
-      const logoHeight = logoImage.height * scale;
-      page.drawImage(logoImage, {
-        x: PAGE_WIDTH - 120 - 30,
-        y: PAGE_HEIGHT - 60,
-        width: logoWidth,
-        height: logoHeight,
-      });
-    } catch {
-      safeDrawText(page, "SELISE", {
-        x: PAGE_WIDTH - 120 - 30,
-        y: PAGE_HEIGHT - 60,
-        size: 16,
-        font: builder.bold,
-        color: WHITE,
-      });
-    }
-  } else {
-    safeDrawText(page, "SELISE", {
-      x: PAGE_WIDTH - 120 - 30,
-      y: PAGE_HEIGHT - 60,
-      size: 16,
-      font: builder.bold,
-      color: WHITE,
-    });
-  }
+  // Dark divider bars above and below the image band.
+  page.drawRectangle({ x: 0, y: imageTop, width: PAGE_WIDTH, height: barHeight, color: COVER_BAR_COLOR });
+  page.drawRectangle({ x: 0, y: imageBottom - barHeight, width: PAGE_WIDTH, height: barHeight, color: COVER_BAR_COLOR });
 
-  const bannerHeight = PAGE_HEIGHT * 0.20;
-  page.drawRectangle({
-    x: 0,
-    y: 0,
-    width: PAGE_WIDTH,
-    height: bannerHeight,
-    color: rgb(0.05, 0.07, 0.15),
-    opacity: 0.78,
-  });
+  // Title + subtitle in the white content area below the image.
+  // Uses Exo (title 32pt / subtitle 24pt) if public/fonts/Exo-*.ttf were
+  // found and embedded in PdfBuilder.create(); falls back to Helvetica
+  // otherwise so a missing font file never breaks PDF generation.
+  const titleFont = builder.exoBold ?? builder.bold;
+  const subtitleFont = builder.exoRegular ?? builder.regular;
 
-  // Vertical center the 3-line text block within the banner.
-  // Block: title (20pt) + 8pt gap + quarter (12pt) + 8pt gap + date (12pt) ≈ 60pt total
-  const totalBlockHeight = 60;
-  const textBlockTop = (bannerHeight / 2) + (totalBlockHeight / 2);
-
-  // White vertical accent bar — contained within the banner (y=0 to bannerHeight).
-  page.drawRectangle({
-    x: 40,
-    y: 12,
-    width: 4,
-    height: bannerHeight - 24,
-    color: WHITE,
+  const titleY = imageBottom - 90;
+  safeDrawText(page, projectName, {
+    x: MARGIN,
+    y: titleY,
+    size: 32,
+    font: titleFont,
+    color: COVER_TITLE_COLOR,
   });
 
   const cadenceLabel = cadence.charAt(0).toUpperCase() + cadence.slice(1).toLowerCase();
-  const coverTitle = `${projectName} — ${cadenceLabel} Service Delivery Report`;
-  safeDrawText(page, coverTitle, {
+  const subtitle = `${cadenceLabel} Service Delivery Report — ${period}`;
+  safeDrawText(page, subtitle, {
     x: MARGIN,
-    y: textBlockTop - 20,
-    size: 20,
-    font: builder.bold,
-    color: WHITE,
-  });
-  safeDrawText(page, period, {
-    x: MARGIN,
-    y: textBlockTop - 20 - 20 - 8,
-    size: 12,
-    font: builder.regular,
-    color: rgb(0.85, 0.85, 0.9),
-  });
-  safeDrawText(page, dateGenerated, {
-    x: MARGIN,
-    y: textBlockTop - 20 - 20 - 8 - 12 - 8,
-    size: 12,
-    font: builder.regular,
-    color: rgb(0.7, 0.7, 0.78),
+    y: titleY - 40,
+    size: 24,
+    font: subtitleFont,
+    color: COVER_SUBTITLE_COLOR,
   });
 
-  if (customerLogoUrl) {
-    try {
-      const response = await fetch(customerLogoUrl);
-      if (response.ok) {
-        const bytes = new Uint8Array(await response.arrayBuffer());
-        const contentType = response.headers.get("content-type") ?? "";
-        const isPng = contentType.includes("png") || customerLogoUrl.toLowerCase().endsWith(".png");
-        const image = isPng
-          ? await builder.doc.embedPng(bytes)
-          : await builder.doc.embedJpg(bytes);
-        const logoWidth = 80;
-        const scale = logoWidth / image.width;
-        const logoHeight = image.height * scale;
-        page.drawImage(image, {
-          x: PAGE_WIDTH - MARGIN - logoWidth,
-          y: bannerHeight / 2 - logoHeight / 2,
-          width: logoWidth,
-          height: logoHeight,
-        });
-      }
-    } catch {
-      // Customer logo is optional — skip silently if it can't be fetched/embedded.
+  // Static SELISE Group AG address block, bottom-right of the white area.
+  const addressLines: { text: string; size: number; font: PDFFont }[] = [
+    { text: "SELISE Group AG", size: 13, font: builder.bold },
+    { text: "The Circle 37", size: 10, font: builder.regular },
+    { text: "8058 Zürich-Flughafen", size: 10, font: builder.regular },
+    { text: "Switzerland", size: 10, font: builder.regular },
+    { text: "CH +41 44 805 8044", size: 10, font: builder.regular },
+    { text: "", size: 10, font: builder.regular },
+    { text: "www.selisegroup.com", size: 10, font: builder.regular },
+  ];
+  let addressY = 125;
+  for (const line of addressLines) {
+    if (line.text) {
+      const w = line.font.widthOfTextAtSize(line.text, line.size);
+      safeDrawText(page, line.text, {
+        x: PAGE_WIDTH - MARGIN - w,
+        y: addressY,
+        size: line.size,
+        font: line.font,
+        color: COVER_ADDRESS_COLOR,
+      });
     }
+    addressY -= line.size + 4;
   }
+
+  // Customer logo and SELISE logo overlays from the previous design are
+  // dropped for this layout — the reference design has no logo slot on
+  // the cover. Can be reintroduced at a specific position if requested.
 }
 
 export async function generateReportPdf(projectId: string): Promise<string> {

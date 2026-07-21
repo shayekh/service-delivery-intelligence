@@ -16,6 +16,9 @@ const config: Config = {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ["var(--font-open-sans)", "sans-serif"],
+      },
       colors: {
         border: "var(--border)",
         input: "var(--input)",
