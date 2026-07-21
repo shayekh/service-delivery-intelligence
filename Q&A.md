@@ -146,7 +146,7 @@ communicated to the client this quarter?
 Worth flagging for Q3 planning: the client's interest in a returns management feature
 could be a meaningful scope expansion. Also recommend formally addressing the
 cost-breakdown request before it becomes a friction point — possibly tied to the ITSM
-self-service status page idea as a broader "transparency package" pitch.
+self-service status page idea as a broader transparency package pitch.
 
 ### Step 11 — Review Summary
 *(No separate answer — review + submit step.)*
