@@ -118,7 +118,11 @@ function ActionCell({
   }
 
   return (
-    <Button variant="outline" className={ACTION_BTN_OUTLINE} disabled>
+    <Button
+      variant="outline"
+      className={`${ACTION_BTN_OUTLINE} border-transparent bg-slate-100 text-slate-600 hover:bg-slate-100 hover:text-slate-600`}
+      disabled
+    >
       No Access
     </Button>
   );
