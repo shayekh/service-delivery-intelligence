@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { Check, ChevronLeft, ChevronRight, FolderOpen, Search, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronLeft, ChevronRight, FolderOpen, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/StatusChip";
 import { DeleteProjectButton } from "@/components/dashboard/DeleteProjectButton";
@@ -129,6 +129,15 @@ function deriveStatus(project: ProjectWithAssignees): string {
   return project.status;
 }
 
+function quarterSortValue(quarter: string): number {
+  const match = quarter.match(/Q(\d)\s*(\d{4})/);
+  if (!match) return 0;
+  const [, q, year] = match;
+  return Number(year) * 10 + Number(q);
+}
+
+type SortDirection = "asc" | "desc" | null;
+
 export function ProjectsTable({
   projects,
   currentUser,
@@ -140,10 +149,11 @@ export function ProjectsTable({
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
+  const [quarterSort, setQuarterSort] = useState<SortDirection>(null);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
-    return projects.filter((p) => {
+    const result = projects.filter((p) => {
       const matchesSearch =
         !q ||
         p.project_name.toLowerCase().includes(q) ||
@@ -155,13 +165,26 @@ export function ProjectsTable({
 
       return matchesSearch && matchesStatus;
     });
-  }, [projects, search, statusFilter]);
+
+    if (quarterSort) {
+      result.sort((a, b) => {
+        const diff = quarterSortValue(a.quarter) - quarterSortValue(b.quarter);
+        return quarterSort === "asc" ? diff : -diff;
+      });
+    }
+
+    return result;
+  }, [projects, search, statusFilter, quarterSort]);
+
+  function toggleQuarterSort() {
+    setQuarterSort((prev) => (prev === null ? "asc" : prev === "asc" ? "desc" : null));
+  }
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, pageSize]);
+  }, [search, statusFilter, pageSize, quarterSort]);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -249,14 +272,36 @@ export function ProjectsTable({
                 "Tech Lead",
                 "Status",
                 "Action",
-              ].map((heading) => (
-                <th
-                  key={heading}
-                  className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500"
-                >
-                  {heading}
-                </th>
-              ))}
+              ].map((heading) =>
+                heading === "Quarter" ? (
+                  <th
+                    key={heading}
+                    className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500"
+                  >
+                    <button
+                      type="button"
+                      onClick={toggleQuarterSort}
+                      className="flex items-center gap-1 hover:text-slate-700"
+                    >
+                      {heading}
+                      {quarterSort === "asc" ? (
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      ) : quarterSort === "desc" ? (
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowUpDown className="h-3.5 w-3.5 text-slate-300" />
+                      )}
+                    </button>
+                  </th>
+                ) : (
+                  <th
+                    key={heading}
+                    className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500"
+                  >
+                    {heading}
+                  </th>
+                )
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
