@@ -212,6 +212,11 @@ function buildAssignmentEmailHtml({
               <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#334155;">
                 Please log in and complete your review questionnaire for this project when ready.
               </p>
+              <p style="margin:0 0 24px;text-align:center;">
+                <a href="https://service-delivery-intelligence-l.vercel.app/" style="display:inline-block;background:#2563eb;color:#ffffff;font-size:14px;font-weight:600;padding:10px 24px;border-radius:8px;text-decoration:none;">
+                  Open Service Delivery Intelligence
+                </a>
+              </p>
               <p style="margin:28px 0 0;font-size:14px;line-height:1.6;color:#334155;">
                 Regards,<br />
                 <strong>SELISE Digital Platforms</strong>
