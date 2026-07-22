@@ -219,7 +219,7 @@ export function ProjectsTable({
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center gap-4">
+      <div className="sticky top-0 z-20 mb-4 flex flex-wrap items-center gap-4 bg-gray-50 py-2">
         {/* Legend */}
         <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 mr-2">
           {LEGEND_ITEMS.map((item) => (
@@ -267,7 +267,7 @@ export function ProjectsTable({
 
       <div className="overflow-hidden rounded-xl bg-white shadow">
         <table className="w-full divide-y divide-gray-100">
-          <thead className="bg-gray-50">
+          <thead className="sticky top-0 z-10 bg-gray-50">
             <tr>
               {[
                 "Project",
