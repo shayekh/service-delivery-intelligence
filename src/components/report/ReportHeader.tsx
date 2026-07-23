@@ -69,8 +69,9 @@ export function ReportHeader({
             </p>
             <StatusPill status={project.status} />
           </div>
-          <h1 className="mt-1 text-3xl font-bold text-slate-800">
+          <h1 className="mt-1 flex items-baseline gap-2 text-3xl font-medium text-slate-800">
             {project.project_name}
+            <span className="text-slate-400">· {project.customer_name}</span>
           </h1>
           <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-slate-500">
             <span>{project.quarter}</span>
