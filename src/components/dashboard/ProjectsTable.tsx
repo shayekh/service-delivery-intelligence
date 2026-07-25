@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, type MouseEvent as ReactMouseEvent, type ReactNode, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronLeft, ChevronRight, FolderOpen, RotateCcw, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronLeft, ChevronRight, FolderOpen, Filter, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/StatusChip";
 import { DeleteProjectButton } from "@/components/dashboard/DeleteProjectButton";
@@ -12,7 +13,8 @@ import { BUSINESS_UNITS, type ProjectWithAssignees, type User } from "@/types";
 const LEGEND_ITEMS = [
   { label: "Not started", color: "bg-slate-400" },
   { label: "One role submitted", color: "bg-amber-400" },
-  { label: "Both submitted / ready", color: "bg-green-500" },
+  { label: "Both submitted", color: "bg-indigo-500" },
+  { label: "Report ready", color: "bg-green-500" },
   { label: "Processing", color: "bg-purple-500" },
   { label: "Report sent", color: "bg-blue-500" },
 ];
@@ -31,29 +33,218 @@ const BUSINESS_UNIT_OPTIONS = BUSINESS_UNITS.map((unit) => ({
   label: unit,
 }));
 
-function FilterCheckbox({
-  checked,
-  onChange,
-  label,
-  bold,
-}: {
-  checked: boolean;
-  onChange: () => void;
+interface FilterOption {
+  value: string;
   label: string;
-  bold?: boolean;
+}
+
+function ColumnFilterPopover({
+  options,
+  selected,
+  onApply,
+  onClose,
+  anchorRect,
+  popoverRef,
+}: {
+  options: FilterOption[];
+  selected: string[];
+  onApply: (values: string[]) => void;
+  onClose: () => void;
+  anchorRect: { top: number; left: number };
+  popoverRef: RefObject<HTMLDivElement>;
 }) {
+  const [draft, setDraft] = useState<string[]>(selected);
+  const [query, setQuery] = useState("");
+
+  const q = query.toLowerCase().trim();
+  const visibleOptions = options.filter(
+    (opt) => draft.includes(opt.value) || opt.label.toLowerCase().includes(q)
+  );
+  const allVisibleSelected =
+    visibleOptions.length > 0 && visibleOptions.every((opt) => draft.includes(opt.value));
+
+  function toggleValue(value: string) {
+    setDraft((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
+  }
+
+  function toggleSelectAll() {
+    if (allVisibleSelected) {
+      const visibleValues = new Set(visibleOptions.map((o) => o.value));
+      setDraft((prev) => prev.filter((v) => !visibleValues.has(v)));
+    } else {
+      setDraft((prev) => [
+        ...prev,
+        ...visibleOptions.map((o) => o.value).filter((v) => !prev.includes(v)),
+      ]);
+    }
+  }
+
+  return createPortal(
+    <div
+      ref={popoverRef}
+      style={{ position: "fixed", top: anchorRect.top, left: anchorRect.left }}
+      className="z-50 w-64 rounded-lg border border-slate-200 bg-white p-3 text-left normal-case tracking-normal shadow-lg"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="relative mb-2">
+        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+        <input
+          autoFocus
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search values…"
+          className="w-full rounded-md border border-slate-200 py-1.5 pl-8 pr-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+        />
+      </div>
+
+      <div className="h-56 overflow-y-auto">
+        <label className="flex cursor-pointer items-center gap-2 border-b border-slate-100 py-1.5 text-sm font-medium text-slate-800">
+          <span
+            onClick={toggleSelectAll}
+            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+              allVisibleSelected ? "border-blue-600 bg-blue-600" : "border-slate-300 bg-white"
+            }`}
+          >
+            {allVisibleSelected && <Check className="h-3 w-3 text-white" />}
+          </span>
+          (Select all)
+        </label>
+        {visibleOptions.map((opt) => {
+          const checked = draft.includes(opt.value);
+          return (
+            <label
+              key={opt.value}
+              className="flex cursor-pointer items-center gap-2 py-1 text-sm text-slate-700"
+            >
+              <span
+                onClick={() => toggleValue(opt.value)}
+                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                  checked ? "border-blue-600 bg-blue-600" : "border-slate-300 bg-white"
+                }`}
+              >
+                {checked && <Check className="h-3 w-3 text-white" />}
+              </span>
+              <span className="truncate">{opt.label}</span>
+            </label>
+          );
+        })}
+        {visibleOptions.length === 0 && (
+          <p className="py-2 text-sm text-slate-400">No matches.</p>
+        )}
+      </div>
+
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
+        <button
+          type="button"
+          onClick={() => {
+            onApply([]);
+            onClose();
+          }}
+          className="text-sm font-medium text-slate-500 hover:text-slate-700"
+        >
+          Clear
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onApply(draft);
+            onClose();
+          }}
+          className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+        >
+          Apply
+        </button>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function ColumnHeaderFilter({
+  columnKey,
+  label,
+  options,
+  selected,
+  onApply,
+  openColumn,
+  setOpenColumn,
+  extra,
+}: {
+  columnKey: string;
+  label: string;
+  options: FilterOption[];
+  selected: string[];
+  onApply: (values: string[]) => void;
+  openColumn: string | null;
+  setOpenColumn: (v: string | null) => void;
+  extra?: ReactNode;
+}) {
+  const isOpen = openColumn === columnKey;
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [anchorRect, setAnchorRect] = useState<{ top: number; left: number } | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleOutsideClick(e: MouseEvent) {
+      const target = e.target as Node;
+      if (popoverRef.current?.contains(target)) return;
+      if (buttonRef.current?.contains(target)) return;
+      setOpenColumn(null);
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [isOpen, setOpenColumn]);
+
+  function handleToggle(e: ReactMouseEvent) {
+    e.stopPropagation();
+    if (isOpen) {
+      setOpenColumn(null);
+      return;
+    }
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const POPOVER_WIDTH = 256;
+    const MARGIN = 8;
+    const left = Math.min(
+      Math.max(rect.right - POPOVER_WIDTH, MARGIN),
+      window.innerWidth - POPOVER_WIDTH - MARGIN
+    );
+    setAnchorRect({ top: rect.bottom + 4, left });
+    setOpenColumn(columnKey);
+  }
+
   return (
-    <label className="flex cursor-pointer items-center gap-2 py-1 text-sm text-slate-700">
-      <span
-        onClick={onChange}
-        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-          checked ? "border-blue-600 bg-blue-600" : "border-slate-300 bg-white"
-        }`}
-      >
-        {checked && <Check className="h-3 w-3 text-white" />}
-      </span>
-      <span className={bold ? "font-medium text-slate-800" : ""}>{label}</span>
-    </label>
+    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
+      <div className="flex items-center gap-1.5">
+        {extra ?? <span>{label}</span>}
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={handleToggle}
+          className={`rounded p-0.5 ${
+            selected.length > 0 ? "text-blue-600" : "text-slate-400 hover:text-slate-600"
+          }`}
+          aria-label={`Filter ${label}`}
+        >
+          <Filter className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      {isOpen && anchorRect && (
+        <ColumnFilterPopover
+          options={options}
+          selected={selected}
+          onApply={onApply}
+          onClose={() => setOpenColumn(null)}
+          anchorRect={anchorRect}
+          popoverRef={popoverRef}
+        />
+      )}
+    </th>
   );
 }
 
@@ -180,62 +371,96 @@ export function ProjectsTable({
   currentUser: User;
 }) {
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const [businessUnitFilter, setBusinessUnitFilter] = useState<string[]>([]);
-  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [openColumn, setOpenColumn] = useState<string | null>(null);
+  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({
+    project: [],
+    accountName: [],
+    businessUnit: [],
+    quarter: [],
+    productManager: [],
+    techLead: [],
+    status: [],
+  });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
   const [quarterSort, setQuarterSort] = useState<SortDirection>(null);
 
-  const activeFilterCount = statusFilter.length + businessUnitFilter.length;
-
-  function toggleFilterValue(
-    list: string[],
-    setList: (v: string[]) => void,
-    value: string
-  ) {
-    setList(
-      list.includes(value) ? list.filter((v) => v !== value) : [...list, value]
-    );
+  function setColumnFilter(key: string, values: string[]) {
+    setColumnFilters((prev) => ({ ...prev, [key]: values }));
   }
 
-  const allSelected =
-    statusFilter.length === STATUS_OPTIONS.length &&
-    businessUnitFilter.length === BUSINESS_UNIT_OPTIONS.length;
-
-  function toggleSelectAll() {
-    if (allSelected) {
-      setStatusFilter([]);
-      setBusinessUnitFilter([]);
-    } else {
-      setStatusFilter(STATUS_OPTIONS.map((o) => o.value));
-      setBusinessUnitFilter(BUSINESS_UNIT_OPTIONS.map((o) => o.value));
+  const columnOptions = useMemo(() => {
+    function uniqueOptions(values: (string | null | undefined)[]): FilterOption[] {
+      const unique = Array.from(new Set(values.filter((v): v is string => !!v)));
+      unique.sort((a, b) => a.localeCompare(b));
+      return unique.map((v) => ({ value: v, label: v }));
     }
-  }
 
-  function resetFilters() {
-    setStatusFilter([]);
-    setBusinessUnitFilter([]);
-  }
+    return {
+      project: uniqueOptions(projects.map((p) => p.project_name)),
+      accountName: uniqueOptions(projects.map((p) => p.customer_name)),
+      businessUnit: BUSINESS_UNIT_OPTIONS,
+      quarter: uniqueOptions(projects.map((p) => p.quarter)).sort(
+        (a, b) => quarterSortValue(a.value) - quarterSortValue(b.value)
+      ),
+      productManager: uniqueOptions(projects.map((p) => p.assigned_pm_name)),
+      techLead: uniqueOptions(projects.map((p) => p.assigned_tl_name)),
+      status: STATUS_OPTIONS,
+    };
+  }, [projects]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     const result = projects.filter((p) => {
+      const statusLabel =
+        STATUS_OPTIONS.find((opt) => opt.value === deriveStatus(p))?.label ?? "";
+
       const matchesSearch =
         !q ||
         p.project_name.toLowerCase().includes(q) ||
         (p.customer_name ?? "").toLowerCase().includes(q) ||
+        (p.business_unit ?? "").toLowerCase().includes(q) ||
+        p.quarter.toLowerCase().includes(q) ||
         (p.assigned_pm_name ?? "").toLowerCase().includes(q) ||
-        (p.assigned_tl_name ?? "").toLowerCase().includes(q);
+        (p.assigned_tl_name ?? "").toLowerCase().includes(q) ||
+        statusLabel.toLowerCase().includes(q);
 
-      const matchesStatus =
-        statusFilter.length === 0 || statusFilter.includes(deriveStatus(p));
+      const matchesProject =
+        columnFilters.project.length === 0 ||
+        columnFilters.project.includes(p.project_name);
+
+      const matchesAccountName =
+        columnFilters.accountName.length === 0 ||
+        columnFilters.accountName.includes(p.customer_name);
 
       const matchesBusinessUnit =
-        businessUnitFilter.length === 0 ||
-        (!!p.business_unit && businessUnitFilter.includes(p.business_unit));
+        columnFilters.businessUnit.length === 0 ||
+        (!!p.business_unit && columnFilters.businessUnit.includes(p.business_unit));
 
-      return matchesSearch && matchesStatus && matchesBusinessUnit;
+      const matchesQuarter =
+        columnFilters.quarter.length === 0 || columnFilters.quarter.includes(p.quarter);
+
+      const matchesPm =
+        columnFilters.productManager.length === 0 ||
+        (!!p.assigned_pm_name && columnFilters.productManager.includes(p.assigned_pm_name));
+
+      const matchesTl =
+        columnFilters.techLead.length === 0 ||
+        (!!p.assigned_tl_name && columnFilters.techLead.includes(p.assigned_tl_name));
+
+      const matchesStatus =
+        columnFilters.status.length === 0 || columnFilters.status.includes(deriveStatus(p));
+
+      return (
+        matchesSearch &&
+        matchesProject &&
+        matchesAccountName &&
+        matchesBusinessUnit &&
+        matchesQuarter &&
+        matchesPm &&
+        matchesTl &&
+        matchesStatus
+      );
     });
 
     if (quarterSort) {
@@ -246,7 +471,7 @@ export function ProjectsTable({
     }
 
     return result;
-  }, [projects, search, statusFilter, businessUnitFilter, quarterSort]);
+  }, [projects, search, columnFilters, quarterSort]);
 
   function toggleQuarterSort() {
     setQuarterSort((prev) => (prev === null ? "asc" : prev === "asc" ? "desc" : null));
@@ -256,7 +481,7 @@ export function ProjectsTable({
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, businessUnitFilter, pageSize, quarterSort]);
+  }, [search, columnFilters, pageSize, quarterSort]);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -318,143 +543,104 @@ export function ProjectsTable({
             </button>
           )}
         </div>
-
-        <button
-          type="button"
-          onClick={() => setShowFilterPanel(true)}
-          className="relative flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-          Filter
-          {activeFilterCount > 0 && (
-            <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-semibold text-white">
-              {activeFilterCount}
-            </span>
-          )}
-        </button>
         </div>
       </div>
-
-      {showFilterPanel && (
-        <div className="fixed inset-0 z-40 flex justify-end">
-          <div
-            className="absolute inset-0 bg-black/30"
-            onClick={() => setShowFilterPanel(false)}
-          />
-          <div className="relative z-50 flex h-full w-[320px] flex-col bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-              <h3 className="text-base font-semibold text-slate-800">Filter</h3>
-              <button
-                type="button"
-                onClick={() => setShowFilterPanel(false)}
-                aria-label="Close"
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-5 py-4">
-              <button
-                type="button"
-                onClick={resetFilters}
-                className="mb-3 flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Reset filters
-              </button>
-
-              <FilterCheckbox
-                checked={allSelected}
-                onChange={toggleSelectAll}
-                label="Select all"
-                bold
-              />
-
-              <p className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Status
-              </p>
-              {STATUS_OPTIONS.map((opt) => (
-                <FilterCheckbox
-                  key={opt.value}
-                  checked={statusFilter.includes(opt.value)}
-                  onChange={() =>
-                    toggleFilterValue(statusFilter, setStatusFilter, opt.value)
-                  }
-                  label={opt.label}
-                />
-              ))}
-
-              <p className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Business Unit
-              </p>
-              {BUSINESS_UNIT_OPTIONS.map((opt) => (
-                <FilterCheckbox
-                  key={opt.value}
-                  checked={businessUnitFilter.includes(opt.value)}
-                  onChange={() =>
-                    toggleFilterValue(
-                      businessUnitFilter,
-                      setBusinessUnitFilter,
-                      opt.value
-                    )
-                  }
-                  label={opt.label}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="overflow-hidden rounded-xl bg-white shadow">
         <table className="w-full divide-y divide-gray-100">
           <thead className="sticky top-0 z-10 bg-gray-50">
-            <tr>
-              {[
-                "Project",
-                "Business Unit",
-                "Quarter",
-                "Product Manager",
-                "Tech Lead",
-                "Status",
-                "Action",
-              ].map((heading) =>
-                heading === "Quarter" ? (
-                  <th
-                    key={heading}
-                    className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500"
+            <tr onClick={() => setOpenColumn(null)}>
+              <ColumnHeaderFilter
+                columnKey="project"
+                label="Project"
+                options={columnOptions.project}
+                selected={columnFilters.project}
+                onApply={(v) => setColumnFilter("project", v)}
+                openColumn={openColumn}
+                setOpenColumn={setOpenColumn}
+              />
+              <ColumnHeaderFilter
+                columnKey="accountName"
+                label="Account Name"
+                options={columnOptions.accountName}
+                selected={columnFilters.accountName}
+                onApply={(v) => setColumnFilter("accountName", v)}
+                openColumn={openColumn}
+                setOpenColumn={setOpenColumn}
+              />
+              <ColumnHeaderFilter
+                columnKey="businessUnit"
+                label="Business Unit"
+                options={columnOptions.businessUnit}
+                selected={columnFilters.businessUnit}
+                onApply={(v) => setColumnFilter("businessUnit", v)}
+                openColumn={openColumn}
+                setOpenColumn={setOpenColumn}
+              />
+              <ColumnHeaderFilter
+                columnKey="quarter"
+                label="Quarter"
+                options={columnOptions.quarter}
+                selected={columnFilters.quarter}
+                onApply={(v) => setColumnFilter("quarter", v)}
+                openColumn={openColumn}
+                setOpenColumn={setOpenColumn}
+                extra={
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleQuarterSort();
+                    }}
+                    className="flex items-center gap-1 hover:text-slate-700"
                   >
-                    <button
-                      type="button"
-                      onClick={toggleQuarterSort}
-                      className="flex items-center gap-1 hover:text-slate-700"
-                    >
-                      {heading}
-                      {quarterSort === "asc" ? (
-                        <ArrowUp className="h-3.5 w-3.5" />
-                      ) : quarterSort === "desc" ? (
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      ) : (
-                        <ArrowUpDown className="h-3.5 w-3.5 text-slate-300" />
-                      )}
-                    </button>
-                  </th>
-                ) : (
-                  <th
-                    key={heading}
-                    className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500"
-                  >
-                    {heading}
-                  </th>
-                )
-              )}
+                    Quarter
+                    {quarterSort === "asc" ? (
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    ) : quarterSort === "desc" ? (
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    ) : (
+                      <ArrowUpDown className="h-3.5 w-3.5 text-slate-300" />
+                    )}
+                  </button>
+                }
+              />
+              <ColumnHeaderFilter
+                columnKey="productManager"
+                label="Product Manager"
+                options={columnOptions.productManager}
+                selected={columnFilters.productManager}
+                onApply={(v) => setColumnFilter("productManager", v)}
+                openColumn={openColumn}
+                setOpenColumn={setOpenColumn}
+              />
+              <ColumnHeaderFilter
+                columnKey="techLead"
+                label="Tech Lead"
+                options={columnOptions.techLead}
+                selected={columnFilters.techLead}
+                onApply={(v) => setColumnFilter("techLead", v)}
+                openColumn={openColumn}
+                setOpenColumn={setOpenColumn}
+              />
+              <ColumnHeaderFilter
+                columnKey="status"
+                label="Status"
+                options={columnOptions.status}
+                selected={columnFilters.status}
+                onApply={(v) => setColumnFilter("status", v)}
+                openColumn={openColumn}
+                setOpenColumn={setOpenColumn}
+              />
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
+                Action
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-10 text-center text-sm text-slate-400">
+                <td colSpan={8} className="px-6 py-10 text-center text-sm text-slate-400">
                   No projects match your search.
                 </td>
               </tr>
@@ -466,18 +652,16 @@ export function ProjectsTable({
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
                         {getInitials(project.project_name)}
                       </div>
-                      <div>
-                        <p className="font-medium text-slate-800">
-                          {project.project_name}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          {project.customer_name}
-                        </p>
-                      </div>
+                      <p className="font-medium text-slate-800">
+                        {project.project_name}
+                      </p>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-800">
-                    {project.business_unit || <span className="block text-center">—</span>}
+                    {project.customer_name}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-800">
+                    {project.business_unit || "—"}
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-800">
                     {project.quarter}
