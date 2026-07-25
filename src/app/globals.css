@@ -10,24 +10,24 @@
 
 @keyframes focus-lens-flash {
   0% {
-    outline: 2px solid rgba(59, 130, 246, 0.75);
-    outline-offset: 3px;
-    background-color: rgba(59, 130, 246, 0.06);
-  }
-  70% {
-    outline: 2px solid rgba(59, 130, 246, 0.15);
-    outline-offset: 3px;
-    background-color: transparent;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.35);
   }
   100% {
-    outline: 2px solid transparent;
-    outline-offset: 3px;
-    background-color: transparent;
+    box-shadow: 0 0 0 2px #2563eb;
   }
 }
 
 .focus-lens-active {
-  animation: focus-lens-flash 2s ease-out forwards;
+  animation: focus-lens-flash 0.6s ease-out forwards;
+  border-radius: 6px;
+}
+
+/* Stays on the current stepper item for as long as it's active — not just
+   a momentary flash — so it's still clear which item is selected after the
+   entry animation settles. */
+.focus-lens-current {
+  box-shadow: 0 0 0 2px #2563eb;
+  background-color: rgba(37, 99, 235, 0.06);
   border-radius: 6px;
 }
 

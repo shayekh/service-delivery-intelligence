@@ -115,6 +115,7 @@ class PdfBuilder {
 
   static async create(projectName: string, period: string): Promise<PdfBuilder> {
     const doc = await PDFDocument.create();
+    doc.setTitle(`${projectName} | ${period}`);
     doc.registerFontkit(fontkit);
     const regular = await doc.embedFont(StandardFonts.Helvetica);
     const bold = await doc.embedFont(StandardFonts.HelveticaBold);

@@ -34,20 +34,23 @@ export function FocusLensStepper({
     // Scroll the item into view — scroll-margin-top on the element handles header offset
     el.scrollIntoView({ behavior: "smooth" });
 
-    // Flash highlight — restart animation cleanly
+    // Flash highlight on entry — restart animation cleanly
     el.classList.remove("focus-lens-active");
     void el.offsetWidth; // force reflow to restart animation
     el.classList.add("focus-lens-active");
 
-    const timer = setTimeout(() => el.classList.remove("focus-lens-active"), 2100);
+    // Persistent highlight stays on the item the whole time it's the current
+    // stepper item, not just during the brief entry flash.
+    el.classList.add("focus-lens-current");
+
     return () => {
-      clearTimeout(timer);
       el.classList.remove("focus-lens-active");
+      el.classList.remove("focus-lens-current");
     };
   }, [currentItem.id]);
 
   return (
-    <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-2 shadow-lg">
+    <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 flex items-center gap-1 rounded-full border border-slate-600 bg-white px-3 py-2 shadow-lg">
       <button
         type="button"
         onClick={onPrev}
