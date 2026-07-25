@@ -62,7 +62,7 @@ export function HealthRating({
       </div>
       {mismatch && (
         <p className="mt-3 text-xs text-red-500">
-          ⚠ PM and TL assessments differ — see Management Attention for details.
+          ⚠ Product Manager and Tech Lead assessments differ — see Management Attention for details.
         </p>
       )}
     </SectionCard>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Loader2 } from "lucide-react";
+import { Eye, Loader2 } from "lucide-react";
 
 export function DownloadPdfButton({
   projectId,
@@ -47,9 +47,9 @@ export function DownloadPdfButton({
         {isLoading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
-          <Download className="h-4 w-4" />
+          <Eye className="h-4 w-4" />
         )}
-        {isLoading ? "Generating..." : "Download PDF"}
+        {isLoading ? "Generating..." : "View PDF"}
       </button>
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>

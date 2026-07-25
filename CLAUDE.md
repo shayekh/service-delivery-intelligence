@@ -154,7 +154,7 @@ PDF GENERATION (triggers automatically right after agent, same server action)
 → Saved to Supabase Storage bucket "reports" at path `{projectId}/report.pdf` (upsert: true — overwrites on regeneration)
 → projects.pdf_url stores the public URL
 → PDF generation is best-effort: if it fails, status is still "ready" and the web report is viewable; the PDF API route (/api/projects/[id]/pdf) will attempt on-demand generation as a fallback
-→ "Download PDF" button opens projects.pdf_url directly if set (no generation delay); falls back to the API route only if pdf_url is null
+→ "View PDF" button (renamed from "Download PDF") opens projects.pdf_url directly in a new tab if set (no generation delay); falls back to the API route only if pdf_url is null
 
 EMAIL
 → Scheduler (Vercel Cron, daily) checks settings.delivery_cadence + send_on_day
@@ -198,7 +198,8 @@ created_at  timestamp
 ```sql
 id                uuid primary key
 project_name      text
-customer_name     text
+customer_name     text        -- UI label is "Account Name" (see Business Unit note below) — column name unchanged
+business_unit     text        -- one of 16 fixed values (Retail & Services (RNB), Insurance & Banking (INB), Manufacturing & Engineering (MNE), Telecom & Technology (TNT), Blocks BD-ST (BLK), ORDERMONKEY (OMK), Signature (SIG), Total Experience Lab (TXL), GenesisX (GNX), Human Resource (HMR), Finance & Legal (FNL), Marketing (MKT), General Admin (GAM), IT Operations (ITO), Consulting (CON), Sourcing (SRC)); required on New Project form; nullable in DB for legacy pre-migration rows (dashboard shows "—" if null)
 review_cadence    text        -- 'monthly' | 'quarterly'
 quarter           text        -- 'Q1 2026' | 'Q2 2026' | 'Q3 2026' | 'Q4 2026'
 start_date        date        -- auto set on creation
@@ -212,6 +213,7 @@ manual_email_sent_at   timestamp   -- set by manual send only
 created_by             uuid references users
 created_at        timestamp
 ```
+**Migration:** `supabase/migrations/013_projects_business_unit.sql` adds `business_unit` with a check constraint on the 16 values above — confirm this has actually been run against live Supabase before relying on the column (per the standing migration-confirmation rule below).
 
 ### pm_answers
 ```sql
@@ -328,8 +330,23 @@ uploaded_at     timestamp
 ### 3. Dashboard (light theme)
 - Heading: "Project Reviews"
 - "Add Project" button top right → opens New Project slide-in modal
-- Project table columns: PROJECT | QUARTER | PRODUCT MANAGER | TECH LEAD | STATUS | ACTION
-- Legend above table: ● Not started ● One role submitted ● Both submitted / ready ● Report sent
+- Project table columns: PROJECT | ACCOUNT NAME | BUSINESS UNIT | QUARTER | PRODUCT MANAGER | TECH LEAD | STATUS | ACTION
+  - Project column: initials avatar + `project_name` only (Account Name split out into its own column, no longer a subtitle here)
+  - Account Name column: `customer_name` (DB column name unchanged — only the UI label is "Account Name")
+  - Business Unit column: `business_unit` value, left-aligned; shows plain em dash "—" for legacy rows where it's null
+  - Product Manager / Tech Lead columns: show the assignee's name (`assigned_pm_name` / `assigned_tl_name`, or "—" if unset) directly — NOT a submission-status indicator. Submission/progress state is fully covered by the Status column and its chips/legend below.
+  - Quarter column supports ascending/descending sort (chronological, not alphabetical)
+- Per-column filters: every column above (Project, Account Name, Business Unit, Quarter, Product Manager, Tech Lead, Status) has its own filter icon in the header → opens a popover (search box, "(Select all)", checkboxes, Clear/Apply buttons) scoped to that column's distinct values. There is no separate global "Filter" button/panel — filtering is entirely per-column.
+  - Popover renders via a React portal to `document.body` (escapes the table wrapper's `overflow-hidden` clipping) with `position: fixed` coordinates computed from the trigger button, closed via outside-click detection.
+  - Selected values remain visible in the popover list even while a search query is typed that doesn't match their label.
+- Global search box (separate from column filters) matches against: project name, account name, business unit, quarter, product manager name, tech lead name, and the derived status label — all substring/case-insensitive.
+- Legend above table (6 entries, each a distinct color — not a shared "both submitted/ready" bucket):
+  - ● Not started (slate-400 grey) — neither role has submitted
+  - ● One role submitted (amber-400)
+  - ● Both submitted (indigo-500) — both roles submitted, AI/PDF not yet marked ready
+  - ● Report ready (green-500)
+  - ● Processing (purple-500)
+  - ● Report sent (blue-500)
 - Status chips:
   - Grey "Not started" → neither PM nor TL has submitted
   - Amber "Awaiting Tech Lead" → PM submitted, TL pending
@@ -347,14 +364,16 @@ uploaded_at     timestamp
 
 ### 4. New Project (right-side slide-in modal)
 - Triggered by "Add Project" button — slides in from right
-- Fields:
-  - Project Name (text)
-  - Customer Name (text)
+- Fields (in order):
+  - Account Name (text) — UI label only; maps to `customer_name` column. Placeholder: "e.g. Service 7000 AG". Required; validation message "Account name is required."
+  - Project Name (text). Placeholder: "e.g. Customer Portal"
+  - Business Unit (dropdown, required) — exactly 16 fixed values, see `projects.business_unit` in the schema above. Validation message "Business unit is required."
   - Delivery Cadence: Monthly / Quarterly toggle
   - Quarter: Q1 | Q2 | Q3 | Q4 selector + Year
   - Assign PM: dropdown of registered PMs
   - Assign TL: dropdown of registered TLs
   - Recipient Emails: tag-style email input (project-specific stakeholders, used by manual send)
+- Analysis mode selector: two-card selector, "Deterministic" (default, active) vs. "Adaptive" (disabled, "Coming Soon" badge — no pipeline branching exists yet, see Analysis Mode section below)
 - Buttons: Cancel | Create Project (primary blue)
 
 ### 5. PM Questionnaire (11 steps)
@@ -425,11 +444,12 @@ uploaded_at     timestamp
 
 **ITSM step questions** — free text, same styling as other free-text steps, no special question type
 
-### 8. Report Preview Page (web) — VERIFIED against `page.tsx` and `ReportSidebar.tsx`
-- Header: Customer name (bold) | Quarter badge | Prepared by: [PM name], [TL name]
-- Top right: Download PDF button + Send Report button (primary; label is "Send Report" or "Resend Report" based on `manual_email_sent_at`, shows "Last sent manually on [date]" hint — independent of `status`)
+### 8. Report Preview Page (web) — VERIFIED against `page.tsx`, `ReportHeader.tsx`, and `ReportSidebar.tsx`
+- Header (`ReportHeader.tsx`): Account Name leads, Project Name follows muted and same font weight — `{customer_name} · {project_name}` as a single `h1` (`font-medium`, not `font-bold`), e.g. "ipex AG · Case Management Portal". Below that: quarter · Product Manager name with a "Product Manager" pill badge · Tech Lead name with a "Tech Lead" pill badge — always spelled out in full, never abbreviated "PM"/"TL".
+- Top right: **"View PDF" button** (renamed from "Download PDF" — it opens the PDF in a new browser tab via `window.open`, it does not force a file download; user can save from the browser's own PDF viewer) + Send Report button (primary; label is "Send Report" or "Resend Report" based on `manual_email_sent_at`, shows "Last sent manually on [date]" hint — independent of `status`)
 - Left sidebar navigation to all sections with scroll-spy active highlighting, plain sequential numbering (no "S" prefix in UI)
 - Each section tagged: "PM Submitted" (blue) | "TL Submitted" (blue) | "AI Synthesised" (purple)
+- A "Focus Lens" stepper (`FocusLensBar.tsx` / `FocusLensStepper.tsx`) lets the user jump between flagged items (Blind Spots, Disagreements, Complements, Agreed, Risks, Urgent) across the Cross-Analysis Summary, ITSM Maturity Summary, Risks & Dependencies, and Management Attention sections. The stepper is a fixed pill at the bottom of the viewport (`border-slate-600` for visibility). The currently-selected item gets a brief entry flash plus a persistent `blue-600` box-shadow outline + light blue tint that stays until the user steps to another item or exits.
 - **Web report preview uses 18 sections** (more granular than the 16-section PDF — see note below):
   ```
   From Submission (11):
@@ -750,6 +770,12 @@ flagged inline in TL questionnaire in real time.
 **Owner field in S13:** "Product Manager" | "Tech Lead" | "Product Manager, Tech Lead" — never "Both"
 **Source field in S14:** "Product Manager" | "Tech Lead" | "Product Manager, Tech Lead" | "Disagreement" — never "Both"
 
+**Wording rule — no "PM"/"TL" abbreviations in generated or customer-facing text:** `SYSTEM_PROMPT` in `src/lib/agent.ts` explicitly instructs the model to always write "Product Manager" and "Tech Lead" in full in all generated prose (findings, explanations, lessons, closing note, value paragraphs) — never the abbreviations "PM"/"TL". Deterministic (non-AI) fallback strings that touch customer-facing report/UI text follow the same rule (e.g. the disagreement fallback text in `applyComputedFields()`, and the mismatch warning in `HealthRating.tsx`). "PM"/"TL" abbreviations are still fine in internal-only, non-report UI (dashboard admin labels like "Assign PM", status filter option "Awaiting PM") — the rule applies specifically to report/analysis content a customer or stakeholder will read.
+
+**`SYSTEM_PROMPT` tone & consistency rules (added on top of the schema instructions):** in addition to the numbered schema-generation rules, the prompt includes a tone/writing-style section (avoid AI-sounding stock phrases like "leverage", "robust", "seamlessly", "delve into", "furthermore", "it's worth noting"; prefer concrete, direct, varied prose) and an evidence & consistency section (evidence-based claims only, no hype/upsell language, issue→impact→cause→action→prevention→owner structure for risks/lessons/management-attention items using only existing schema fields, internal-contradiction self-checks, and the rule that overall delivery status must reflect the most severe underlying signal present rather than an averaged rollup). These are prompt-text instructions only — no schema/PDF/UI structural changes were made alongside them.
+
+**PDF document title metadata:** `PdfBuilder.create()` in `src/lib/pdf.ts` sets the PDF's internal document title (`doc.setTitle(...)`) to `"{projectName} | {period}"` — this is what Chrome/Edge's built-in PDF viewer shows as the browser tab title when the PDF is opened, distinct from the Supabase Storage file name (`report.pdf`) in the URL path. Existing already-generated PDFs won't have this until regenerated.
+
 ---
 
 ## Key Rules & Decisions
@@ -758,10 +784,11 @@ flagged inline in TL questionnaire in real time.
 - Same project + same quarter = overwrite with warning modal
 - Both PM and TL can create projects and set recipient emails
 - Both Assign PM and Assign TL are mandatory when creating a project
+- Business Unit is mandatory when creating a project (dropdown, 16 fixed values — see `projects.business_unit` in schema)
 - TL sees all projects on dashboard and can open any awaiting TL submission
 - AI triggers only when BOTH have submitted
 - PDF is generated automatically right after generateAnalysis() succeeds (in pm/actions.ts and tl/actions.ts), not on download-click — stored in Supabase Storage bucket "reports" at `{projectId}/report.pdf`
-- projects.pdf_url stores the PDF public URL; Download PDF button opens it directly if set, falls back to on-demand generation if null
+- projects.pdf_url stores the PDF public URL; "View PDF" button opens it directly if set, falls back to on-demand generation if null
 - All free-text answers described naturally — AI parses into structured tables
 - Date format: DD Month, YYYY (e.g. 28 June, 2026)
 - Status badges: Green / Amber / Red — inline, never on separate line
@@ -962,7 +989,7 @@ service-delivery-intelligence/
 
 `projects.analysis_mode` is a text column (check-constrained to `'deterministic' | 'non_deterministic'`, default `'deterministic'`).
 
-The New Project modal exposes a two-card selector. **Deterministic** is selected by default and is the only active option. **Non-Deterministic** is rendered as a disabled card with a "Coming Soon" badge — it cannot be clicked or selected.
+The New Project modal exposes a two-card selector. **Deterministic** is selected by default and is the only active option. The other card's UI label is **"Adaptive"** (renamed from "Investigative"; DB value remains `non_deterministic` — label-only rename, not a schema change) and is rendered disabled with a "Coming Soon" badge — it cannot be clicked or selected.
 
 **No pipeline branching exists yet.** `agent.ts` / `generateAnalysis()` ignores `analysis_mode` entirely. The column is captured on project creation solely to avoid a schema migration later when Tier 2 (agentic, tool-use loop) analysis ships.
 
@@ -1005,6 +1032,17 @@ alter table analysis_results
 ---
 
 ## Last Updated
+July 26, 2026 — Business Unit field, dashboard per-column filters, report header/wording fixes, AI prompt tone/consistency rules, Focus Lens stepper, PDF title metadata, "View PDF" rename:
+- **DB**: `projects.business_unit` added (migration `013_projects_business_unit.sql`, 16 fixed values, check-constrained) — confirm this migration has actually been run against live Supabase before relying on it
+- **New Project modal** (`NewProjectModal.tsx`): field order changed to Account Name (UI label for `customer_name`) → Project Name → Business Unit (new required dropdown) → Delivery Cadence → Quarter → Assign PM/TL → Recipient Emails; disabled analysis-mode card relabeled "Investigative" → "Adaptive" (DB value still `non_deterministic`)
+- **Dashboard** (`ProjectsTable.tsx`): added Account Name and Business Unit as their own columns; Product Manager/Tech Lead columns now show the assignee's name instead of a submission-status indicator (removed `SubmissionCell`); legend split "Both submitted / ready" into two distinct entries ("Both submitted" — indigo-500, "Report ready" — green-500); replaced the old global filter panel entirely with per-column filter popovers (Project, Account Name, Business Unit, Quarter, Product Manager, Tech Lead, Status), rendered via `createPortal` to escape the table wrapper's `overflow-hidden` clipping; global search extended to also match business unit, quarter, and status label
+- **Report header** (`ReportHeader.tsx`): now shows Account Name leading, Project Name following in muted styling, both same font weight (`font-medium` on the shared `h1`); PM/TL badges spelled out in full ("Product Manager" / "Tech Lead", never abbreviated)
+- **Report wording** (`agent.ts`, `HealthRating.tsx`): added `SYSTEM_PROMPT` rule 9 forbidding "PM"/"TL" abbreviations in any AI-generated prose; fixed hardcoded fallback strings in `applyComputedFields()` and the mismatch warning in `HealthRating.tsx` to spell out full role names
+- **`agent.ts` `SYSTEM_PROMPT`**: added a tone/writing-style section (avoid AI-sounding stock phrases, prefer concrete direct prose) and an evidence & consistency section (evidence-based claims, no hype/upsell language, issue→impact→cause→action→prevention→owner structure, internal-contradiction checks, overall-status-reflects-most-severe-signal rule) — prompt text only, no schema/PDF/UI structural changes
+- **Focus Lens stepper** (`FocusLensStepper.tsx`, `globals.css`): pill border darkened to `border-slate-600` for visibility; currently-selected item now gets a persistent `blue-600` box-shadow outline + light blue background tint (not just a fading 2s flash) that stays until the user steps away or exits
+- **PDF** (`pdf.ts`): `PdfBuilder.create()` now sets the PDF's document title metadata to `"{projectName} | {period}"`, shown as the browser tab title when the PDF is opened (distinct from the Storage file name `report.pdf`)
+- **"Download PDF" → "View PDF"** (`DownloadPdfButton.tsx`): renamed to accurately reflect that it opens the PDF in a new tab (`window.open`) rather than forcing a file download; no logic change
+
 July 6, 2026 — Token cost tracking added (additive instrumentation only, no prompt/model/max_tokens changes):
 - `analysis_results` table: new `token_usage` (jsonb) and `cost_usd` (float8) columns
 - `src/lib/agent.ts`: `MODEL_PRICING` config, `calculateCost()`, usage capture after API call, console logging; `generateAnalysis` now returns `{ analysis, tokenUsage }`

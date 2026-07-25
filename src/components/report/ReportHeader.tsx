@@ -80,12 +80,12 @@ export function ReportHeader({
               <>
                 <span className="flex items-center gap-1.5">
                   {parsed.pm}
-                  <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-500">PM</span>
+                  <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-500">Product Manager</span>
                 </span>
                 <span className="text-slate-300">·</span>
                 <span className="flex items-center gap-1.5">
                   {parsed.tl}
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">TL</span>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Tech Lead</span>
                 </span>
               </>
             ) : (

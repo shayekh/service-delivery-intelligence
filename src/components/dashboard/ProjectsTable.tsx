@@ -248,25 +248,6 @@ function ColumnHeaderFilter({
   );
 }
 
-
-function SubmissionCell({ submitted }: { submitted: boolean }) {
-  if (submitted) {
-    return (
-      <span className="flex items-center gap-1.5 text-sm text-green-600">
-        <Check className="h-4 w-4" />
-        Submitted
-      </span>
-    );
-  }
-
-  return (
-    <span className="flex items-center gap-1.5 text-sm text-slate-400">
-      <span className="h-2 w-2 rounded-full bg-slate-300" />
-      Not started
-    </span>
-  );
-}
-
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
 const ACTION_BTN = "w-32 justify-center bg-blue-600 text-white hover:bg-blue-600/90";
@@ -666,11 +647,11 @@ export function ProjectsTable({
                   <td className="px-6 py-4 text-sm text-slate-800">
                     {project.quarter}
                   </td>
-                  <td className="px-6 py-4">
-                    <SubmissionCell submitted={project.pm_submitted} />
+                  <td className="px-6 py-4 text-sm text-slate-800">
+                    {project.assigned_pm_name || "—"}
                   </td>
-                  <td className="px-6 py-4">
-                    <SubmissionCell submitted={project.tl_submitted} />
+                  <td className="px-6 py-4 text-sm text-slate-800">
+                    {project.assigned_tl_name || "—"}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-1">

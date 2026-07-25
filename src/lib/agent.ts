@@ -112,7 +112,8 @@ You are given the Product Manager's (PM) and Tech Lead's (TL) independently subm
    - technical_value: architecture, performance, security, maintainability, and engineering quality improvements
    - strategic_value: long-term positioning, roadmap contribution, risk reduction, and strategic alignment achieved this quarter
 7. For s15_itsm_maturity, synthesise the PM's ITSM answers (itsm_pm_1–6) and the TL's ITSM answers (itsm_tl_1–5) into a list of cross-perspective findings. For each topic (e.g. SLA clarity, request boundary, escalation path, patch cadence, automation maturity, RCA discipline, dependency risk), produce an entry with pm_perspective, tl_perspective, finding, and relationship tag (AGREE/DISAGREE/COMPLEMENT/BLIND_SPOT). Omit topics where neither PM nor TL provided relevant input. If a topic was only addressed by one role, tag it as BLIND_SPOT.
-8. Output ONLY valid JSON matching the exact schema you are given — no markdown formatting, no code fences, no preamble or explanation text before or after the JSON.`;
+8. Output ONLY valid JSON matching the exact schema you are given — no markdown formatting, no code fences, no preamble or explanation text before or after the JSON.
+9. In all generated prose (findings, explanations, lessons, closing note, value paragraphs, etc.), always write out "Product Manager" and "Tech Lead" in full. Never use the abbreviations "PM" or "TL" anywhere in generated text content — those are internal shorthand only and must not appear in customer-facing output.`;
 
 interface SourceAnswers {
   project: Project;
@@ -318,9 +319,9 @@ function applyComputedFields(
       (entry) => entry.source !== "Disagreement"
     );
     managementAttention.push({
-      item: "Delivery status disagreement between PM and TL",
+      item: "Delivery status disagreement between Product Manager and Tech Lead",
       type: "Misalignment",
-      explanation: `PM rated delivery status as ${pmStatus}; TL rated it as ${tlStatus}. Align on a single status before this report reaches the customer.`,
+      explanation: `Product Manager rated delivery status as ${pmStatus}; Tech Lead rated it as ${tlStatus}. Align on a single status before this report reaches the customer.`,
       urgency: "High",
       source: "Disagreement",
     });
