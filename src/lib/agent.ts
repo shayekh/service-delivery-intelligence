@@ -112,7 +112,25 @@ You are given the Product Manager's (PM) and Tech Lead's (TL) independently subm
    - technical_value: architecture, performance, security, maintainability, and engineering quality improvements
    - strategic_value: long-term positioning, roadmap contribution, risk reduction, and strategic alignment achieved this quarter
 7. For s15_itsm_maturity, synthesise the PM's ITSM answers (itsm_pm_1–6) and the TL's ITSM answers (itsm_tl_1–5) into a list of cross-perspective findings. For each topic (e.g. SLA clarity, request boundary, escalation path, patch cadence, automation maturity, RCA discipline, dependency risk), produce an entry with pm_perspective, tl_perspective, finding, and relationship tag (AGREE/DISAGREE/COMPLEMENT/BLIND_SPOT). Omit topics where neither PM nor TL provided relevant input. If a topic was only addressed by one role, tag it as BLIND_SPOT.
-8. Output ONLY valid JSON matching the exact schema you are given — no markdown formatting, no code fences, no preamble or explanation text before or after the JSON.`;
+8. Output ONLY valid JSON matching the exact schema you are given — no markdown formatting, no code fences, no preamble or explanation text before or after the JSON.
+
+## Tone & Writing Style
+Write every generated sentence (s10_value_delivered, s10_cross_analysis findings, s11_lessons_learned, s12_next_quarter_focus, s13_management_attention, s15_itsm_maturity findings, s16_closing_note, and any other prose you compose) the way an experienced, plain-spoken delivery lead would write it in a real client report — not the way a language model typically writes.
+- Vary sentence length and structure. Avoid starting consecutive sentences or bullet points with the same word or template ("This quarter...", "The team...", "It is important to note...").
+- Avoid stock AI phrasing and hedge-words: "leverage", "robust", "seamless", "in today's fast-paced environment", "delve into", "furthermore", "it's worth noting", "overall". Say the specific thing instead.
+- Be concrete and specific to this project's actual data — cite the real numbers, names, and details you were given rather than writing generically.
+- Prefer direct, confident statements over qualified, hedged ones, while staying strictly truthful to the source answers (never fabricate — see rule 3 above).
+- It's fine for sentences to be a little uneven in rhythm, the way a person typing quickly would write, as long as it stays professional and readable.
+
+## Evidence & Consistency Rules
+- Every status or achievement claim must tie back to something concrete in the source answers (a metric, an incident count, a specific detail) — never write unsupported general claims like "everything was stable" or "support was excellent."
+- Avoid hype and marketing language: "seamlessly", "best-in-class", "world-class", "successfully delivered" (when no evidence is given), "no issues" (when lower-level concerns exist elsewhere in the same answers).
+- Never use "upsell" or "cross-sell" language. When next-quarter focus areas or opportunities touch on future value, frame them around an observed need and the resulting customer benefit, not a sales pitch.
+- Prefer direct, evidence-anchored phrasing: "Target achieved", "Target missed", "Root cause under investigation", "Decision required" — over vague hedged language.
+- When synthesising risks, issues, lessons learned, or management-attention items, follow this shape wherever the source data supports it: issue → customer/business impact → cause or current understanding → action taken → preventive action → owner (using only the fields already in the schema — description/mitigation/context/action — do not invent new fields).
+- Check for internal contradictions before finalizing: do not let one section (e.g. executive summary highlights) imply full stability while another section (e.g. risks) lists an open critical issue on the same topic; do not describe something as fully resolved if a related preventive action is still described as open or pending.
+- The overall delivery status in s1_executive_summary must reflect the single most material/severe signal present in the data, not an averaged or optimistic rollup — a critical risk, unresolved disagreement, or Red-flagged workstream should visibly shape the overall narrative even if pm_q2/tl_q2 were both Green.
+- Where the data needed to make a clean claim is simply missing, say so plainly rather than smoothing over the gap (consistent with rule 3 above).`;
 
 interface SourceAnswers {
   project: Project;

@@ -2,6 +2,25 @@ export type UserRole = "product_manager" | "tech_lead";
 export type StatusColor = "Green" | "Amber" | "Red";
 export type ReviewCadence = "monthly" | "quarterly";
 export type AnalysisMode = "deterministic" | "non_deterministic";
+
+export const BUSINESS_UNITS = [
+  "Retail & Services (RNB)",
+  "Insurance & Banking (INB)",
+  "Manufacturing & Engineering (MNE)",
+  "Telecom & Technology (TNT)",
+  "Blocks BD-ST (BLK)",
+  "ORDERMONKEY (OMK)",
+  "Signature (SIG)",
+  "Total Experience Lab (TXL)",
+  "GenesisX (GNX)",
+  "Human Resource (HMR)",
+  "Finance & Legal (FNL)",
+  "Marketing (MKT)",
+  "General Admin (GAM)",
+  "IT Operations (ITO)",
+  "Consulting (CON)",
+  "Sourcing (SRC)",
+] as const;
 export type ProjectStatus =
   | "awaiting_pm"
   | "awaiting_tl"
@@ -22,6 +41,7 @@ export interface Project {
   id: string;
   project_name: string;
   customer_name: string;
+  business_unit: string | null;
   review_cadence: ReviewCadence;
   quarter: string;
   start_date: string;
@@ -133,6 +153,7 @@ export interface ProjectWithAssignees extends Project {
 export interface CreateProjectInput {
   project_name: string;
   customer_name: string;
+  business_unit: string;
   review_cadence: ReviewCadence;
   quarter: string;
   assigned_pm: string | null;

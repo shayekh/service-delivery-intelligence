@@ -2,12 +2,12 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronLeft, ChevronRight, FolderOpen, Search, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronLeft, ChevronRight, FolderOpen, RotateCcw, Search, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/StatusChip";
 import { DeleteProjectButton } from "@/components/dashboard/DeleteProjectButton";
 import { getInitials } from "@/lib/utils";
-import type { ProjectWithAssignees, User } from "@/types";
+import { BUSINESS_UNITS, type ProjectWithAssignees, type User } from "@/types";
 
 const LEGEND_ITEMS = [
   { label: "Not started", color: "bg-slate-400" },
@@ -18,7 +18,6 @@ const LEGEND_ITEMS = [
 ];
 
 const STATUS_OPTIONS = [
-  { value: "", label: "All statuses" },
   { value: "not_started", label: "Not started" },
   { value: "awaiting_pm", label: "Awaiting PM" },
   { value: "awaiting_tl", label: "Awaiting TL" },
@@ -26,6 +25,37 @@ const STATUS_OPTIONS = [
   { value: "ready", label: "Report ready" },
   { value: "sent", label: "Report sent" },
 ];
+
+const BUSINESS_UNIT_OPTIONS = BUSINESS_UNITS.map((unit) => ({
+  value: unit,
+  label: unit,
+}));
+
+function FilterCheckbox({
+  checked,
+  onChange,
+  label,
+  bold,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  label: string;
+  bold?: boolean;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center gap-2 py-1 text-sm text-slate-700">
+      <span
+        onClick={onChange}
+        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+          checked ? "border-blue-600 bg-blue-600" : "border-slate-300 bg-white"
+        }`}
+      >
+        {checked && <Check className="h-3 w-3 text-white" />}
+      </span>
+      <span className={bold ? "font-medium text-slate-800" : ""}>{label}</span>
+    </label>
+  );
+}
 
 
 function SubmissionCell({ submitted }: { submitted: boolean }) {
@@ -150,10 +180,43 @@ export function ProjectsTable({
   currentUser: User;
 }) {
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [businessUnitFilter, setBusinessUnitFilter] = useState<string[]>([]);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
   const [quarterSort, setQuarterSort] = useState<SortDirection>(null);
+
+  const activeFilterCount = statusFilter.length + businessUnitFilter.length;
+
+  function toggleFilterValue(
+    list: string[],
+    setList: (v: string[]) => void,
+    value: string
+  ) {
+    setList(
+      list.includes(value) ? list.filter((v) => v !== value) : [...list, value]
+    );
+  }
+
+  const allSelected =
+    statusFilter.length === STATUS_OPTIONS.length &&
+    businessUnitFilter.length === BUSINESS_UNIT_OPTIONS.length;
+
+  function toggleSelectAll() {
+    if (allSelected) {
+      setStatusFilter([]);
+      setBusinessUnitFilter([]);
+    } else {
+      setStatusFilter(STATUS_OPTIONS.map((o) => o.value));
+      setBusinessUnitFilter(BUSINESS_UNIT_OPTIONS.map((o) => o.value));
+    }
+  }
+
+  function resetFilters() {
+    setStatusFilter([]);
+    setBusinessUnitFilter([]);
+  }
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -165,9 +228,14 @@ export function ProjectsTable({
         (p.assigned_pm_name ?? "").toLowerCase().includes(q) ||
         (p.assigned_tl_name ?? "").toLowerCase().includes(q);
 
-      const matchesStatus = !statusFilter || deriveStatus(p) === statusFilter;
+      const matchesStatus =
+        statusFilter.length === 0 || statusFilter.includes(deriveStatus(p));
 
-      return matchesSearch && matchesStatus;
+      const matchesBusinessUnit =
+        businessUnitFilter.length === 0 ||
+        (!!p.business_unit && businessUnitFilter.includes(p.business_unit));
+
+      return matchesSearch && matchesStatus && matchesBusinessUnit;
     });
 
     if (quarterSort) {
@@ -178,7 +246,7 @@ export function ProjectsTable({
     }
 
     return result;
-  }, [projects, search, statusFilter, quarterSort]);
+  }, [projects, search, statusFilter, businessUnitFilter, quarterSort]);
 
   function toggleQuarterSort() {
     setQuarterSort((prev) => (prev === null ? "asc" : prev === "asc" ? "desc" : null));
@@ -188,7 +256,7 @@ export function ProjectsTable({
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, pageSize, quarterSort]);
+  }, [search, statusFilter, businessUnitFilter, pageSize, quarterSort]);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -251,19 +319,93 @@ export function ProjectsTable({
           )}
         </div>
 
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-lg border border-slate-200 bg-white py-2 pl-3 pr-8 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        <button
+          type="button"
+          onClick={() => setShowFilterPanel(true)}
+          className="relative flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
         >
-          {STATUS_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+          <SlidersHorizontal className="h-4 w-4" />
+          Filter
+          {activeFilterCount > 0 && (
+            <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-semibold text-white">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
         </div>
       </div>
+
+      {showFilterPanel && (
+        <div className="fixed inset-0 z-40 flex justify-end">
+          <div
+            className="absolute inset-0 bg-black/30"
+            onClick={() => setShowFilterPanel(false)}
+          />
+          <div className="relative z-50 flex h-full w-[320px] flex-col bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+              <h3 className="text-base font-semibold text-slate-800">Filter</h3>
+              <button
+                type="button"
+                onClick={() => setShowFilterPanel(false)}
+                aria-label="Close"
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-4">
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="mb-3 flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Reset filters
+              </button>
+
+              <FilterCheckbox
+                checked={allSelected}
+                onChange={toggleSelectAll}
+                label="Select all"
+                bold
+              />
+
+              <p className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Status
+              </p>
+              {STATUS_OPTIONS.map((opt) => (
+                <FilterCheckbox
+                  key={opt.value}
+                  checked={statusFilter.includes(opt.value)}
+                  onChange={() =>
+                    toggleFilterValue(statusFilter, setStatusFilter, opt.value)
+                  }
+                  label={opt.label}
+                />
+              ))}
+
+              <p className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Business Unit
+              </p>
+              {BUSINESS_UNIT_OPTIONS.map((opt) => (
+                <FilterCheckbox
+                  key={opt.value}
+                  checked={businessUnitFilter.includes(opt.value)}
+                  onChange={() =>
+                    toggleFilterValue(
+                      businessUnitFilter,
+                      setBusinessUnitFilter,
+                      opt.value
+                    )
+                  }
+                  label={opt.label}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-xl bg-white shadow">
         <table className="w-full divide-y divide-gray-100">
@@ -271,6 +413,7 @@ export function ProjectsTable({
             <tr>
               {[
                 "Project",
+                "Business Unit",
                 "Quarter",
                 "Product Manager",
                 "Tech Lead",
@@ -311,7 +454,7 @@ export function ProjectsTable({
           <tbody className="divide-y divide-gray-100">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-10 text-center text-sm text-slate-400">
+                <td colSpan={7} className="px-6 py-10 text-center text-sm text-slate-400">
                   No projects match your search.
                 </td>
               </tr>
@@ -332,6 +475,9 @@ export function ProjectsTable({
                         </p>
                       </div>
                     </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-800">
+                    {project.business_unit || <span className="block text-center">—</span>}
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-800">
                     {project.quarter}

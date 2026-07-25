@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createProjectAction } from "@/app/(app)/dashboard/actions";
-import type { AnalysisMode, ReviewCadence, User } from "@/types";
+import { BUSINESS_UNITS, type AnalysisMode, type ReviewCadence, type User } from "@/types";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"] as const;
@@ -14,6 +14,7 @@ const CURRENT_YEAR = new Date().getFullYear();
 interface FormErrors {
   projectName?: string;
   customerName?: string;
+  businessUnit?: string;
   assignedPm?: string;
   assignedTl?: string;
   email?: string;
@@ -100,6 +101,7 @@ export function NewProjectModal({
 
   const [projectName, setProjectName] = useState("");
   const [customerName, setCustomerName] = useState("");
+  const [businessUnit, setBusinessUnit] = useState("");
   const [cadence, setCadence] = useState<ReviewCadence>("quarterly");
   const [quarter, setQuarter] = useState<(typeof QUARTERS)[number]>("Q1");
   const [year, setYear] = useState(CURRENT_YEAR);
@@ -113,6 +115,7 @@ export function NewProjectModal({
   function resetForm() {
     setProjectName("");
     setCustomerName("");
+    setBusinessUnit("");
     setCadence("quarterly");
     setQuarter("Q1");
     setYear(CURRENT_YEAR);
@@ -148,7 +151,8 @@ export function NewProjectModal({
   function validate(): FormErrors {
     const nextErrors: FormErrors = {};
     if (!projectName.trim()) nextErrors.projectName = "Project name is required.";
-    if (!customerName.trim()) nextErrors.customerName = "Customer name is required.";
+    if (!customerName.trim()) nextErrors.customerName = "Account name is required.";
+    if (!businessUnit) nextErrors.businessUnit = "Business unit is required.";
     if (!assignedPm) nextErrors.assignedPm = "Select a Product Manager.";
     if (!assignedTl) nextErrors.assignedTl = "Select a Tech Lead.";
     return nextErrors;
@@ -167,6 +171,7 @@ export function NewProjectModal({
       await createProjectAction({
         project_name: projectName.trim(),
         customer_name: customerName.trim(),
+        business_unit: businessUnit,
         review_cadence: cadence,
         quarter: `${quarter} ${year}`,
         assigned_pm: assignedPm,
@@ -223,13 +228,29 @@ export function NewProjectModal({
         >
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
+              Account Name
+            </label>
+            <input
+              type="text"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              placeholder="e.g. Service 7000 AG"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            />
+            {errors.customerName && (
+              <p className="mt-1 text-sm text-red-600">{errors.customerName}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
               Project Name
             </label>
             <input
               type="text"
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
-              placeholder="e.g. Northwind Portal Q2 Review"
+              placeholder="e.g. Customer Portal"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
             {errors.projectName && (
@@ -239,17 +260,24 @@ export function NewProjectModal({
 
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
-              Customer Name
+              Business Unit
             </label>
-            <input
-              type="text"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="e.g. Northwind Industries"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            />
-            {errors.customerName && (
-              <p className="mt-1 text-sm text-red-600">{errors.customerName}</p>
+            <select
+              value={businessUnit}
+              onChange={(e) => setBusinessUnit(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="" disabled>
+                Select business unit
+              </option>
+              {BUSINESS_UNITS.map((unit) => (
+                <option key={unit} value={unit}>
+                  {unit}
+                </option>
+              ))}
+            </select>
+            {errors.businessUnit && (
+              <p className="mt-1 text-sm text-red-600">{errors.businessUnit}</p>
             )}
           </div>
 
@@ -379,7 +407,7 @@ export function NewProjectModal({
                 <span className="absolute right-2 top-2 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                   Coming Soon
                 </span>
-                <span className="block pr-20 text-sm font-semibold text-slate-400">Investigative</span>
+                <span className="block pr-20 text-sm font-semibold text-slate-400">Adaptive</span>
                 <span className="mt-0.5 block text-xs text-slate-400">
                   Agentic AI analysis with historical trend awareness. Autonomously investigates gaps, conflicts, and patterns across reviews.
                 </span>
