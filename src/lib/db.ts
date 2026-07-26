@@ -200,6 +200,17 @@ export async function getAllTLs(): Promise<User[]> {
   return (data ?? []) as User[];
 }
 
+export async function getAllUsers(): Promise<User[]> {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as User[];
+}
+
 // Answers
 
 export async function getPMAnswers(
