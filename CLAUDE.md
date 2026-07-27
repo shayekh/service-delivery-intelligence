@@ -50,7 +50,8 @@ report, and emails it to customer stakeholders.
 
 This is an **internal tool** — not a public SaaS product.
 Users are SELISE employees (Product Managers and Tech Leads).
-Anyone can sign up with their SELISE email and select their role.
+There is no public signup — any authenticated user can add new users from
+the `/users` page, which sends them an email invite to set their password.
 
 **Terminal prototype (source of truth):** All core logic — question sets,
 AI reasoning rules, report structure, PDF layout, email format —
@@ -79,24 +80,45 @@ is carried over exactly from the terminal version.
 
 | Role | What They Can Do |
 |------|-----------------|
-| Product Manager | Sign up, create projects, answer PM questionnaire, view reports |
-| Tech Lead | Sign up, view all projects, answer TL questionnaire, view reports |
+| Product Manager | Create projects, answer PM questionnaire, view reports, invite new users |
+| Tech Lead | View all projects, answer TL questionnaire, view reports, invite new users |
 
 No admin role. No delivery manager role.
-Both roles self-selected on signup.
-Both roles can view all projects and reports on the dashboard.
+There is no self-service signup — new accounts are created by an existing
+user via `/users` ("Add User": full name, email, role), which sends an
+email invite; the invited person sets their own password via `/set-password`.
+Both roles can view all projects and reports on the dashboard, and both can
+add new users — the `/users` page and invite action have no extra
+role gate beyond being logged in (see `requireAuth()` in `src/lib/auth.ts`).
 
 ---
 
 ## Core Workflow
 
 ```
-SIGNUP / LOGIN
-→ User visits /signup
-→ Enters Full Name, Last Name, Work Email, Password
-→ Selects role: Product Manager or Tech Lead
-→ Account created via Supabase Auth
-→ Redirected to dashboard
+USER MANAGEMENT / INVITE (no public signup)
+→ Any logged-in user opens /users → "Add User"
+→ Enters Full Name, Work Email, selects role (Product Manager / Tech Lead)
+→ inviteUserAction (src/app/(app)/users/actions.ts) rejects duplicate emails,
+  creates the auth user + users row, sends an invite email (Resend) with a
+  Supabase-generated action link
+→ Invitee opens the email link → lands on /set-password → sets password →
+  redirected to /dashboard
+→ If an invite link expires, /set-password shows an "Invite link expired"
+  card that lets the invitee request a new one (resendInviteAction)
+
+LOGIN
+→ User visits /login → Work Email + Password → supabase.auth.signInWithPassword
+  (client-side, no server action) → redirected to /dashboard
+→ "Forgot password?" link → /forgot-password → enters email →
+  requestPasswordResetAction sends a Resend email with a Supabase recovery
+  link (always resolves silently — no email-enumeration signal either way)
+→ Recovery link opens /reset-password → new password → updateUser({password})
+  → redirected to /dashboard
+→ Both the invite and recovery links use Supabase's implicit-flow hash
+  tokens, parsed manually client-side in SetPasswordForm.tsx /
+  ResetPasswordForm.tsx (setSession from the URL hash) since the app's
+  Supabase browser client is otherwise configured for PKCE
 
 PM CREATES PROJECT
 → PM logs in → Dashboard
@@ -295,13 +317,18 @@ uploaded_at     timestamp
 |-------|------|---------------|
 | `/` | Landing → redirect to login | Everyone |
 | `/login` | Login page | Unauthenticated |
-| `/signup` | Signup page | Unauthenticated |
+| `/forgot-password` | Request a password-reset email | Unauthenticated |
+| `/reset-password` | Set new password from a recovery-link session | Public route, but requires the recovery link's session (see Middleware note) |
+| `/set-password` | Set password from an invite (or expired-invite resend) | Public route, but requires the invite link's session |
+| `/users` | User Management — list users, "Add User" (invite) | Any authenticated user (PM, TL) |
 | `/dashboard` | All projects + status table | PM, TL |
 | `/projects/[id]` | Project detail + report preview + send email | PM, TL |
 | `/projects/[id]/pm` | PM questionnaire (11 steps) | PM only (own draft/answers) |
 | `/projects/[id]/tl` | TL questionnaire (9 steps) | TL only (own draft/answers) |
 | `/settings` | Schedule (cadence, send day), distribution list | Any authenticated user (PM, TL) |
 | `/api/cron/scheduled-send` | Scheduler endpoint (Vercel Cron, daily) | `CRON_SECRET` bearer auth only — NOT session-based; excluded from middleware |
+
+**No public signup route exists** — accounts are created only via `/users` → "Add User" (invite flow).
 
 **Middleware note:** `middleware.ts`'s matcher excludes `api|` from its negative lookahead — ALL `/api/*` routes bypass session-auth middleware and handle their own auth internally (session-based via `createServerSupabaseClient()` for most routes, or `CRON_SECRET` for the cron route). This was a real bug — see Known Issues / Resolved.
 
@@ -315,17 +342,20 @@ uploaded_at     timestamp
 - Left: "Service Delivery Intelligence" hero text + tagline:
   "Structured quarterly reviews for Product Managers and Tech Leads —
   AI-analysed and delivered automatically."
-- Right: Card with Login / Sign Up tab switcher
-  - Work Email, Password, Login button (no role selector — role fetched from DB after login)
+- Right: Card with Work Email, Password, Login button (no role selector — role fetched from DB after login; no signup tab — there is no self-service signup)
+- "Forgot password?" link next to the Password field → `/forgot-password`
 - Footer: SELISE DIGITAL PLATFORMS
 
-### 2. Sign Up Page (dark theme)
-- Same dark background as login
-- Sign Up tab active in the same card
-- Fields: Full Name, Last Name, Work Email, Password
-- Role selector: Product Manager / Tech Lead
-- "Create Account" button
-- Link: "Already have an account? Login"
+### 2. User Management Page (`/users`, light theme)
+- Heading: "User Management" + subtitle "Add Product Managers and Tech Leads — they'll receive an email invite to set up their account."
+- Search box (name, email, or role) — client-side filter in `UsersView.tsx`
+- "Add User" button → modal (`AddUserModal.tsx`): Full Name, Work Email, role selector (Product Manager / Tech Lead) → `inviteUserAction` (rejects duplicate emails, creates the auth user + `users` row, sends invite email)
+- Table (`UsersTable.tsx`): Name | Email (+ "Pending" badge if invited but password not yet set) | Role — paginated with the same rows-per-page/page-number controls as the dashboard's `ProjectsTable.tsx` (10/25/50 options, "Showing X–Y of Z")
+
+### 2a. Forgot Password / Reset Password (dark theme, same `AuthShell` as login)
+- `/forgot-password`: single Work Email field → `requestPasswordResetAction` always shows the same generic "check your email" confirmation, whether or not the address matches an account (no enumeration signal)
+- `/reset-password`: opened from the emailed recovery link; parses Supabase's implicit-flow hash tokens client-side (same mechanism as `/set-password`, see `ResetPasswordForm.tsx`) to establish a session, then New Password + Confirm Password → `supabase.auth.updateUser({ password })` → redirect to `/dashboard`
+- Invalid/expired recovery link → message + link back to `/forgot-password` to request a new one
 
 ### 3. Dashboard (light theme)
 - Heading: "Project Reviews"
@@ -360,19 +390,20 @@ uploaded_at     timestamp
   - Other users see nothing in the Action column unless the report is ready/sent
   - Single consolidated action button per row (no separate edit pencil icon) — label is state-aware: "Fill your section" (not started) / "Continue" (draft exists, not submitted) / "View progress" (submitted, waiting on other role) / "View Report" (both submitted)
   - Delete icon: visible only when (a) neither PM nor TL has submitted yet, AND (b) the current user is `assigned_pm` or `assigned_tl` for that specific project — re-verified server-side on every delete request, not just client-side
-- Left sidebar: Projects | Settings | Logout
+- Left sidebar: Projects | User Management | Settings | Logout
 
 ### 4. New Project (right-side slide-in modal)
 - Triggered by "Add Project" button — slides in from right
 - Fields (in order):
   - Account Name (text) — UI label only; maps to `customer_name` column. Placeholder: "e.g. Service 7000 AG". Required; validation message "Account name is required."
   - Project Name (text). Placeholder: "e.g. Customer Portal"
-  - Business Unit (dropdown, required) — exactly 16 fixed values, see `projects.business_unit` in the schema above. Validation message "Business unit is required."
+  - Business Unit (searchable combobox, required) — exactly 16 fixed values, see `projects.business_unit` in the schema above. Validation message "Business unit is required."
   - Delivery Cadence: Monthly / Quarterly toggle
   - Quarter: Q1 | Q2 | Q3 | Q4 selector + Year
-  - Assign PM: dropdown of registered PMs
-  - Assign TL: dropdown of registered TLs
+  - Assign Product Manager: searchable combobox of registered PMs
+  - Assign Tech Lead: searchable combobox of registered TLs
   - Recipient Emails: tag-style email input (project-specific stakeholders, used by manual send)
+  - Business Unit / Assign Product Manager / Assign Tech Lead all share one reusable `SearchableSelect` component (in `NewProjectModal.tsx`) — a combobox with a search input filtering the option list, not a plain `<select>`
 - Analysis mode selector: two-card selector, "Deterministic" (default, active) vs. "Adaptive" (disabled, "Coming Soon" badge — no pipeline branching exists yet, see Analysis Mode section below)
 - Buttons: Cancel | Create Project (primary blue)
 
@@ -879,9 +910,13 @@ service-delivery-intelligence/
 │       └── selise_logo.png
 ├── src/
 │   ├── app/
-│   │   ├── (auth)/
+│   │   ├── (auth)/                 # public, unauthenticated routes (see middleware.ts PUBLIC_ROUTES)
 │   │   │   ├── login/page.tsx
-│   │   │   └── signup/page.tsx
+│   │   │   ├── set-password/        # invite (and expired-invite resend) flow
+│   │   │   ├── forgot-password/     # request a reset email
+│   │   │   └── reset-password/      # set new password from recovery link
+│   │   ├── (app)/                  # authenticated routes, behind middleware
+│   │   │   └── users/               # User Management — list + "Add User" invite modal
 │   │   ├── dashboard/page.tsx
 │   │   ├── projects/
 │   │   │   └── [id]/
@@ -914,7 +949,9 @@ service-delivery-intelligence/
 │   │   ├── anthropic.ts
 │   │   ├── agent.ts                # AI analysis logic — CLAUDE_MODEL constant lives here
 │   │   ├── pdf.ts                  # PDF generation
-│   │   ├── email.ts                # Resend email sender (sendReportEmail)
+│   │   ├── email.ts                # Resend sender — sendReportEmail, sendInviteEmail, sendPasswordResetEmail
+│   │   ├── invite.ts                # generateInviteLink (admin generateLink, invite→recovery fallback)
+│   │   ├── password-reset.ts        # generatePasswordResetLink (admin generateLink, type: "recovery")
 │   │   └── db.ts                   # getAnalysisResult (session) + getAnalysisResultAdmin (admin, for cron)
 │   └── types/
 │       └── index.ts
@@ -1032,6 +1069,12 @@ alter table analysis_results
 ---
 
 ## Last Updated
+July 28, 2026 — Removed public signup in favor of invite-based user management; added Forgot/Reset Password; searchable New Project dropdowns; paginated Users table:
+- **Signup removed**: `/signup` page and `SignupForm.tsx` deleted. Accounts are now created only via `/users` ("Add User" modal → `inviteUserAction` in `src/app/(app)/users/actions.ts`), which sends an invite email and reuses the existing `/set-password` flow. `/users` page (`UsersView.tsx`, `UsersTable.tsx`, `AddUserModal.tsx`, `AddUserButton.tsx`) and sidebar entry ("User Management") are new; `src/lib/invite.ts` (`generateInviteLink`) and the invite email in `src/lib/email.ts` (`sendInviteEmail`) were introduced with this change
+- **Forgot / Reset Password**: new `/forgot-password` (`ForgotPasswordForm.tsx` + `requestPasswordResetAction`) and `/reset-password` (`ResetPasswordForm.tsx`) pages, mirroring the invite-link pattern — `src/lib/password-reset.ts` (`generatePasswordResetLink`, admin `generateLink({type:"recovery"})`) + `sendPasswordResetEmail`/`buildPasswordResetEmailHtml` in `email.ts`. Always resolves silently regardless of whether the email matches an account (no enumeration signal). Both new routes added to `middleware.ts`'s `PUBLIC_ROUTES`; `/reset-password` deliberately excluded from `REDIRECT_IF_AUTHENTICATED_ROUTES` for the same reason as `/set-password` (its client-side `setSession()` call makes the browser "authenticated" mid-flow). "Forgot password?" link added next to the Password field on `/login`
+- **New Project modal** (`NewProjectModal.tsx`): Business Unit, Assign Product Manager, and Assign Tech Lead converted from plain `<select>` to a shared searchable `SearchableSelect` combobox (search box + filtered option list); "Assign PM"/"Assign TL" labels spelled out in full
+- **Users table** (`UsersTable.tsx`): added pagination matching the dashboard's `ProjectsTable.tsx` pattern (10/25/50 rows-per-page selector, "Showing X–Y of Z", numbered page buttons)
+
 July 26, 2026 — Business Unit field, dashboard per-column filters, report header/wording fixes, AI prompt tone/consistency rules, Focus Lens stepper, PDF title metadata, "View PDF" rename:
 - **DB**: `projects.business_unit` added (migration `013_projects_business_unit.sql`, 16 fixed values, check-constrained) — confirm this migration has actually been run against live Supabase before relying on it
 - **New Project modal** (`NewProjectModal.tsx`): field order changed to Account Name (UI label for `customer_name`) → Project Name → Business Unit (new required dropdown) → Delivery Cadence → Quarter → Assign PM/TL → Recipient Emails; disabled analysis-mode card relabeled "Investigative" → "Adaptive" (DB value still `non_deterministic`)
