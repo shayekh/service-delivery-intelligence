@@ -212,9 +212,10 @@ EMAIL
 id          uuid primary key
 email       text unique
 full_name   text
-role        text        -- 'product_manager' | 'tech_lead'
+role        text        -- 'product_manager' | 'tech_lead' | 'admin'
 created_at  timestamp
 ```
+**Admin role:** `'admin'` is a single hardcoded account (`admin@sdi.com`, dummy non-deliverable address), seeded directly via `scripts/seed-admin.mjs` (`npm run seed:admin`) rather than through the `/users` invite flow — `inviteUserAction` explicitly rejects `role: "admin"`. There is no role-based authorization anywhere in the app today (`requireAuth()` only checks "is logged in"; every authenticated user already sees all projects and can reach `/users`/`/settings`), so admin has no special permissions beyond what any PM/TL account already has — it exists purely as an always-available account not dependent on the invite-email pipeline. Because its email is a dummy address, `/forgot-password` can never recover it; a lost password requires the Supabase dashboard or a manual reset. Migration: `supabase/migrations/014_add_admin_role.sql`.
 
 ### projects
 ```sql

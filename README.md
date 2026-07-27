@@ -49,3 +49,7 @@ Re-run: curl.exe -H "Authorization: Bearer dev-cron-secret-change-in-production"
 
 ## Anthropic API Key Platform
 https://platform.claude.com/dashboard
+
+## Admin Credentials
+Email: admin@sdi.com
+Password: MEO5ipQIX4YgjCoeJAXCiZ6i

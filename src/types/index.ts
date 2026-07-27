@@ -1,4 +1,4 @@
-export type UserRole = "product_manager" | "tech_lead";
+export type UserRole = "product_manager" | "tech_lead" | "admin";
 export type StatusColor = "Green" | "Amber" | "Red";
 export type ReviewCadence = "monthly" | "quarterly";
 export type AnalysisMode = "deterministic" | "non_deterministic";
