@@ -4,9 +4,9 @@ import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { AddUserButton } from "@/components/users/AddUserButton";
 import { UsersTable, ROLE_LABELS } from "@/components/users/UsersTable";
-import type { User } from "@/types";
+import type { UserWithStatus } from "@/types";
 
-export function UsersView({ users }: { users: User[] }) {
+export function UsersView({ users }: { users: UserWithStatus[] }) {
   const [query, setQuery] = useState("");
 
   const filteredUsers = useMemo(() => {

@@ -2,13 +2,11 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { resendInviteAction, markPasswordSetAction } from "@/app/(auth)/set-password/actions";
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface FormErrors {
   password?: string;
@@ -16,67 +14,24 @@ interface FormErrors {
   form?: string;
 }
 
-function ExpiredLinkCard({ knownEmail }: { knownEmail: string | null }) {
-  const [email, setEmail] = useState(knownEmail ?? "");
-  const [emailError, setEmailError] = useState<string | undefined>();
-  const [isSending, setIsSending] = useState(false);
-  const [sentTo, setSentTo] = useState<string | null>(null);
-
-  async function handleRequestNewInvite() {
-    const target = email.trim();
-    if (!EMAIL_REGEX.test(target)) {
-      setEmailError("Enter a valid email address.");
-      return;
-    }
-    setEmailError(undefined);
-    setIsSending(true);
-    await resendInviteAction(target);
-    setIsSending(false);
-    setSentTo(target);
-  }
-
+function ExpiredLinkCard() {
   return (
     <div className="text-center">
-      <h2 className="text-lg font-semibold text-white">Invite link expired</h2>
-
-      {sentTo ? (
-        <p className="mt-2 text-sm text-slate-300">
-          A new invite link has been sent to {sentTo} — check your inbox.
-        </p>
-      ) : (
-        <>
-          <p className="mt-2 text-sm text-red-400">
-            This invite link is invalid or has expired.
-          </p>
-
-          {!knownEmail && (
-            <div className="mt-4 text-left">
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@selise.ch"
-                className="border-slate-600 bg-slate-900/50 text-white placeholder:text-slate-500"
-              />
-              {emailError && <p className="mt-1 text-sm text-red-400">{emailError}</p>}
-            </div>
-          )}
-
-          <Button
-            type="button"
-            onClick={handleRequestNewInvite}
-            disabled={isSending}
-            className="mt-4 w-full bg-[#0052CC] text-white hover:bg-[#0052CC]/90"
-          >
-            {isSending ? "Sending..." : "Request new invite"}
-          </Button>
-        </>
-      )}
+      <h2 className="text-lg font-semibold text-white">Reset link expired</h2>
+      <p className="mt-2 text-sm text-red-400">
+        This reset link is invalid or has expired.
+      </p>
+      <Link
+        href="/forgot-password"
+        className="mt-4 inline-block text-sm text-slate-300 hover:text-white"
+      >
+        Request a new reset link
+      </Link>
     </div>
   );
 }
 
-export function SetPasswordForm() {
+export function ResetPasswordForm() {
   const router = useRouter();
   const supabase = createClient();
 
@@ -85,15 +40,10 @@ export function SetPasswordForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [knownEmail, setKnownEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    setKnownEmail(new URLSearchParams(window.location.search).get("email"));
-  }, []);
-
-  useEffect(() => {
-    // Supabase's invite/recovery links use the implicit flow (tokens in the
-    // URL hash), but this client is configured for the PKCE flow, so its
+    // Supabase's recovery links use the implicit flow (tokens in the URL
+    // hash), but this client is configured for the PKCE flow, so its
     // automatic detectSessionInUrl won't pick them up — parse the hash and
     // set the session explicitly instead.
     const hashParams = new URLSearchParams(window.location.hash.slice(1));
@@ -108,7 +58,7 @@ export function SetPasswordForm() {
           if (data.session && !error) {
             setReady(true);
           } else {
-            setErrors({ form: "This invite link is invalid or has expired." });
+            setErrors({ form: "This reset link is invalid or has expired." });
           }
         });
       return;
@@ -118,7 +68,7 @@ export function SetPasswordForm() {
       if (data.session) {
         setReady(true);
       } else {
-        setErrors({ form: "This invite link is invalid or has expired." });
+        setErrors({ form: "This reset link is invalid or has expired." });
       }
     });
   }, [supabase]);
@@ -146,21 +96,7 @@ export function SetPasswordForm() {
     const { data, error } = await supabase.auth.updateUser({ password });
 
     if (error || !data.user) {
-      setErrors({ form: error?.message ?? "Could not set password." });
-      setIsSubmitting(false);
-      return;
-    }
-
-    try {
-      await markPasswordSetAction(data.user.id);
-    } catch (err) {
-      console.error("[SetPasswordForm] markPasswordSetAction failed:", err);
-      setErrors({
-        form:
-          err instanceof Error
-            ? `Password was set, but activating your account failed: ${err.message}`
-            : "Password was set, but activating your account failed.",
-      });
+      setErrors({ form: error?.message ?? "Could not reset password." });
       setIsSubmitting(false);
       return;
     }
@@ -171,15 +107,15 @@ export function SetPasswordForm() {
 
   if (!ready) {
     if (errors.form) {
-      return <ExpiredLinkCard knownEmail={knownEmail} />;
+      return <ExpiredLinkCard />;
     }
-    return <p className="text-sm text-slate-300">Verifying your invite link…</p>;
+    return <p className="text-sm text-slate-300">Verifying your reset link…</p>;
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <h2 className="mb-2 text-center text-lg font-semibold text-white">
-        Set your password
+        Reset your password
       </h2>
 
       <div className="space-y-1.5">
@@ -223,7 +159,7 @@ export function SetPasswordForm() {
         disabled={isSubmitting}
         className="w-full bg-[#0052CC] text-white hover:bg-[#0052CC]/90"
       >
-        {isSubmitting ? "Setting password..." : "Set Password"}
+        {isSubmitting ? "Resetting password..." : "Reset Password"}
       </Button>
     </form>
   );

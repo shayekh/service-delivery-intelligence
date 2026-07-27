@@ -2,6 +2,7 @@
 
 import { createAdminSupabaseClient } from "@/lib/supabase-admin";
 import { generateInviteLink } from "@/lib/invite";
+import { markPasswordSet } from "@/lib/db";
 import { sendInviteEmail } from "@/lib/email";
 import type { UserRole } from "@/types";
 
@@ -35,4 +36,12 @@ export async function resendInviteAction(email: string): Promise<void> {
   } catch (err) {
     console.error("[resendInviteAction] Could not resend invite:", err);
   }
+}
+
+// Called from the client immediately after supabase.auth.updateUser({
+// password }) succeeds. Uses the admin client since this runs right after
+// a brand-new session is established and shouldn't depend on RLS write
+// policies for a one-off system field.
+export async function markPasswordSetAction(userId: string): Promise<void> {
+  await markPasswordSet(userId);
 }
