@@ -35,6 +35,7 @@ export interface User {
   full_name: string;
   role: UserRole;
   created_at: string;
+  password_set_at: string | null;
 }
 
 export interface Project {
@@ -139,6 +140,10 @@ export interface CustomerLogo {
   logo_url: string;
   uploaded_by: string | null;
   uploaded_at: string;
+}
+
+export interface UserWithStatus extends User {
+  is_pending: boolean;
 }
 
 export interface ProjectWithAssignees extends Project {

@@ -1,11 +1,98 @@
 "use client";
 
-import { useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
-import { X } from "lucide-react";
+import { Check, ChevronDown, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createProjectAction } from "@/app/(app)/dashboard/actions";
 import { BUSINESS_UNITS, type AnalysisMode, type ReviewCadence, type User } from "@/types";
+
+function SearchableSelect({
+  value,
+  onChange,
+  options,
+  placeholder,
+  error,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  placeholder: string;
+  error?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selected = options.find((o) => o.value === value);
+  const filtered = options.filter((o) =>
+    o.label.toLowerCase().includes(query.toLowerCase())
+  );
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className={cn(
+          "flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 text-left outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500",
+          !selected && "text-slate-400"
+        )}
+      >
+        <span>{selected ? selected.label : placeholder}</span>
+        <ChevronDown className="h-4 w-4 text-slate-400" />
+      </button>
+
+      {open && (
+        <div className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg">
+          <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-2">
+            <Search className="h-4 w-4 text-slate-400" />
+            <input
+              autoFocus
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search..."
+              className="w-full text-sm outline-none"
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto py-1">
+            {filtered.length === 0 && (
+              <div className="px-3 py-2 text-sm text-slate-400">No matches found.</div>
+            )}
+            {filtered.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                  setQuery("");
+                }}
+                className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-50"
+              >
+                {option.label}
+                {option.value === value && <Check className="h-4 w-4 text-blue-600" />}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+    </div>
+  );
+}
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"] as const;
@@ -262,23 +349,13 @@ export function NewProjectModal({
             <label className="mb-1 block text-sm font-medium text-slate-700">
               Business Unit
             </label>
-            <select
+            <SearchableSelect
               value={businessUnit}
-              onChange={(e) => setBusinessUnit(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="" disabled>
-                Select business unit
-              </option>
-              {BUSINESS_UNITS.map((unit) => (
-                <option key={unit} value={unit}>
-                  {unit}
-                </option>
-              ))}
-            </select>
-            {errors.businessUnit && (
-              <p className="mt-1 text-sm text-red-600">{errors.businessUnit}</p>
-            )}
+              onChange={setBusinessUnit}
+              options={BUSINESS_UNITS.map((unit) => ({ value: unit, label: unit }))}
+              placeholder="Select business unit"
+              error={errors.businessUnit}
+            />
           </div>
 
           <div>
@@ -337,44 +414,28 @@ export function NewProjectModal({
 
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
-              Assign PM
+              Assign Product Manager
             </label>
-            <select
+            <SearchableSelect
               value={assignedPm}
-              onChange={(e) => setAssignedPm(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="">Select Product Manager</option>
-              {pmUsers.map((pm) => (
-                <option key={pm.id} value={pm.id}>
-                  {pm.full_name}
-                </option>
-              ))}
-            </select>
-            {errors.assignedPm && (
-              <p className="mt-1 text-sm text-red-600">{errors.assignedPm}</p>
-            )}
+              onChange={setAssignedPm}
+              options={pmUsers.map((pm) => ({ value: pm.id, label: pm.full_name }))}
+              placeholder="Select Product Manager"
+              error={errors.assignedPm}
+            />
           </div>
 
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
-              Assign TL
+              Assign Tech Lead
             </label>
-            <select
+            <SearchableSelect
               value={assignedTl}
-              onChange={(e) => setAssignedTl(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="">Select Tech Lead</option>
-              {tlUsers.map((tl) => (
-                <option key={tl.id} value={tl.id}>
-                  {tl.full_name}
-                </option>
-              ))}
-            </select>
-            {errors.assignedTl && (
-              <p className="mt-1 text-sm text-red-600">{errors.assignedTl}</p>
-            )}
+              onChange={setAssignedTl}
+              options={tlUsers.map((tl) => ({ value: tl.id, label: tl.full_name }))}
+              placeholder="Select Tech Lead"
+              error={errors.assignedTl}
+            />
           </div>
 
           <div>

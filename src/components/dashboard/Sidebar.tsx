@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Settings as SettingsIcon, LogOut } from "lucide-react";
+import { LayoutDashboard, Settings as SettingsIcon, LogOut, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import type { User } from "@/types";
@@ -14,6 +14,7 @@ const ROLE_LABELS = {
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Projects", icon: LayoutDashboard },
+  { href: "/users", label: "User Management", icon: Users },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 

@@ -11,6 +11,7 @@ import type {
   TlAnswers,
   TokenUsage,
   User,
+  UserWithStatus,
 } from "@/types";
 
 export interface AnalysisCostStats {
@@ -183,7 +184,8 @@ export async function getAllPMs(): Promise<User[]> {
   const { data, error } = await supabase
     .from("users")
     .select("*")
-    .eq("role", "product_manager");
+    .eq("role", "product_manager")
+    .not("password_set_at", "is", null);
 
   if (error) throw error;
   return (data ?? []) as User[];
@@ -194,10 +196,39 @@ export async function getAllTLs(): Promise<User[]> {
   const { data, error } = await supabase
     .from("users")
     .select("*")
-    .eq("role", "tech_lead");
+    .eq("role", "tech_lead")
+    .not("password_set_at", "is", null);
 
   if (error) throw error;
   return (data ?? []) as User[];
+}
+
+export async function getAllUsers(): Promise<UserWithStatus[]> {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return ((data ?? []) as User[]).map((u) => ({
+    ...u,
+    is_pending: !u.password_set_at,
+  }));
+}
+
+// Marks a user as having completed account setup. Called only after
+// supabase.auth.updateUser({ password }) succeeds on /set-password — not
+// on session creation, since simply opening a valid invite/recovery link
+// (before the form is submitted) already establishes a session.
+export async function markPasswordSet(userId: string): Promise<void> {
+  const admin = createAdminSupabaseClient();
+  const { error } = await admin
+    .from("users")
+    .update({ password_set_at: new Date().toISOString() })
+    .eq("id", userId);
+
+  if (error) throw error;
 }
 
 // Answers

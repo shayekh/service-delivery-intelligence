@@ -1,16 +1,13 @@
 import { AuthShell } from "@/components/auth/AuthShell";
-import { LoginForm } from "@/components/auth/LoginForm";
+import { SetPasswordForm } from "@/components/auth/SetPasswordForm";
 
 export const dynamic = "force-dynamic";
 
-export default function LoginPage() {
+export default function SetPasswordPage() {
   return (
     <AuthShell>
       <div className="w-full max-w-md rounded-xl border border-slate-700 bg-slate-800 p-8 shadow-xl">
-        <h2 className="mb-6 text-center text-lg font-semibold text-white">
-          Login
-        </h2>
-        <LoginForm />
+        <SetPasswordForm />
       </div>
     </AuthShell>
   );
