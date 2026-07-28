@@ -44,6 +44,11 @@ export default async function ProjectDetailPage({
 
   if (!isAssigned && user.role !== "admin") redirect("/dashboard");
 
+  if (!isReady && user.role === "admin" && !isAssigned) {
+    const defaultRole = project.status === "awaiting_tl" ? "pm" : "tl";
+    redirect(`/projects/${id}/review?role=${defaultRole}`);
+  }
+
   // Pending state
   if (!isReady) {
     const STATUS_LABEL: Record<string, string> = {

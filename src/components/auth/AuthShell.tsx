@@ -4,29 +4,19 @@ import type { ReactNode } from "react";
 export function AuthShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-slate-900 text-white">
-      <header className="flex items-center justify-between px-6 py-4 sm:px-10">
+      <header className="flex items-center px-6 py-4 sm:px-10">
         <Link href="/login" className="text-lg font-semibold tracking-wide">
           Service Delivery Intelligence
         </Link>
-        <nav className="flex items-center gap-6 text-sm text-slate-300">
-          <a href="#" className="hover:text-white">
-            Home
-          </a>
-          <a href="#" className="hover:text-white">
-            Use Cases
-          </a>
-          <a href="#" className="hover:text-white">
-            Support
-          </a>
-          <Link href="/login" className="hover:text-white">
-            Sign In
-          </Link>
-        </nav>
       </header>
 
       <main className="flex flex-1 items-center bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950">
         <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-12 px-6 py-12 sm:px-10 lg:grid-cols-2">
-          <div className="space-y-4">
+          <div className="space-y-5">
+            <span className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-800/60 px-3 py-1 text-xs font-medium tracking-wide text-slate-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              BUILT FOR SELISE TEAMS
+            </span>
             <h1 className="text-4xl font-bold leading-tight sm:text-5xl">
               Service Delivery Intelligence
             </h1>

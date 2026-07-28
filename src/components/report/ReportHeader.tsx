@@ -86,6 +86,7 @@ export function ReportHeader({
                 {pmAnswers ? (
                   <Link
                     href={`/projects/${project.id}/review?role=pm`}
+                    replace
                     className="flex items-center gap-1.5 rounded-full"
                   >
                     {parsed.pm}
@@ -105,6 +106,7 @@ export function ReportHeader({
                 {tlAnswers ? (
                   <Link
                     href={`/projects/${project.id}/review?role=tl`}
+                    replace
                     className="flex items-center gap-1.5 rounded-full"
                   >
                     {parsed.tl}
