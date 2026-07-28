@@ -8,6 +8,7 @@ import type { User, UserWithStatus } from "@/types";
 export const ROLE_LABELS: Record<User["role"], string> = {
   product_manager: "Product Manager",
   tech_lead: "Tech Lead",
+  admin: "Admin",
 };
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
@@ -60,7 +61,9 @@ export function UsersTable({ users }: { users: UserWithStatus[] }) {
                       "inline-block rounded-full px-2.5 py-0.5 text-xs font-medium",
                       user.role === "product_manager"
                         ? "bg-blue-100 text-blue-700"
-                        : "bg-slate-200 text-slate-700"
+                        : user.role === "admin"
+                          ? "bg-purple-100 text-purple-700"
+                          : "bg-slate-200 text-slate-700"
                     )}
                   >
                     {ROLE_LABELS[user.role]}

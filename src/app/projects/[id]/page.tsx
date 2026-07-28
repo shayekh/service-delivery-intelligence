@@ -42,7 +42,7 @@ export default async function ProjectDetailPage({
   const isReady =
     project.status === "ready" || project.status === "sent";
 
-  if (!isAssigned && !isReady) redirect("/dashboard");
+  if (!isAssigned && user.role !== "admin") redirect("/dashboard");
 
   // Pending state
   if (!isReady) {

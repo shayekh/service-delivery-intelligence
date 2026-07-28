@@ -212,9 +212,10 @@ EMAIL
 id          uuid primary key
 email       text unique
 full_name   text
-role        text        -- 'product_manager' | 'tech_lead'
+role        text        -- 'product_manager' | 'tech_lead' | 'admin'
 created_at  timestamp
 ```
+**Admin role:** `'admin'` is a single hardcoded account (`admin@sdi.com`, dummy non-deliverable address), seeded directly via `scripts/seed-admin.mjs` (`npm run seed:admin`) rather than through the `/users` invite flow — `inviteUserAction` explicitly rejects `role: "admin"`. There is no general role-based authorization in the app (`requireAuth()` only checks "is logged in"; every authenticated user already sees all projects and can reach `/users`/`/settings`), so admin has no special permissions beyond what any PM/TL account already has for most of the app — it exists purely as an always-available account not dependent on the invite-email pipeline. **One exception:** report viewing (`/projects/[id]` and the dashboard's Action column) — a normal PM/TL user who is not the `assigned_pm`/`assigned_tl` on a given project cannot open that project's report at all (server-side redirect + disabled "No Access" button), but `role === "admin"` bypasses this and can view any project's report once `status` is `ready`/`sent`, checked directly in `src/app/projects/[id]/page.tsx` and `ActionCell` in `src/components/dashboard/ProjectsTable.tsx`. Because its email is a dummy address, `/forgot-password` can never recover it; a lost password requires the Supabase dashboard or a manual reset. Migration: `supabase/migrations/014_add_admin_role.sql`.
 
 ### projects
 ```sql
@@ -322,7 +323,7 @@ uploaded_at     timestamp
 | `/set-password` | Set password from an invite (or expired-invite resend) | Public route, but requires the invite link's session |
 | `/users` | User Management — list users, "Add User" (invite) | Any authenticated user (PM, TL) |
 | `/dashboard` | All projects + status table | PM, TL |
-| `/projects/[id]` | Project detail + report preview + send email | PM, TL |
+| `/projects/[id]` | Project detail + report preview + send email | Assigned PM/TL for that project only, plus `admin` (any project, once `status` is `ready`/`sent`) — all other users are redirected to `/dashboard` |
 | `/projects/[id]/pm` | PM questionnaire (11 steps) | PM only (own draft/answers) |
 | `/projects/[id]/tl` | TL questionnaire (9 steps) | TL only (own draft/answers) |
 | `/settings` | Schedule (cadence, send day), distribution list | Any authenticated user (PM, TL) |
@@ -387,7 +388,7 @@ uploaded_at     timestamp
 - Secondary indicator: "✓ manually sent" shown below "Report ready" chip when `manual_email_sent_at` is set but `status` is still `ready`
 - Action button rules (role-aware):
   - Only the assigned PM/TL for a project gets an action button for their own section
-  - Other users see nothing in the Action column unless the report is ready/sent
+  - Users who are neither the assigned PM nor TL for a project see a disabled "No Access" button in the Action column, even once the report is `ready`/`sent` — they cannot open the report this way — **except** the `admin` role, which sees "View Report" for any project once `status` is `ready`/`sent` (admin has no assignment, so it never sees "Fill your section"/"Continue"/"View progress"). See Admin role note under `users` schema.
   - Single consolidated action button per row (no separate edit pencil icon) — label is state-aware: "Fill your section" (not started) / "Continue" (draft exists, not submitted) / "View progress" (submitted, waiting on other role) / "View Report" (both submitted)
   - Delete icon: visible only when (a) neither PM nor TL has submitted yet, AND (b) the current user is `assigned_pm` or `assigned_tl` for that specific project — re-verified server-side on every delete request, not just client-side
 - Left sidebar: Projects | User Management | Settings | Logout
@@ -476,6 +477,7 @@ uploaded_at     timestamp
 **ITSM step questions** — free text, same styling as other free-text steps, no special question type
 
 ### 8. Report Preview Page (web) — VERIFIED against `page.tsx`, `ReportHeader.tsx`, and `ReportSidebar.tsx`
+- **Access:** page is restricted to the project's `assigned_pm`/`assigned_tl`, plus `admin` (any project, once ready/sent) — any other authenticated user is redirected to `/dashboard` even if they know the URL and the report is `ready`/`sent`.
 - Header (`ReportHeader.tsx`): Account Name leads, Project Name follows muted and same font weight — `{customer_name} · {project_name}` as a single `h1` (`font-medium`, not `font-bold`), e.g. "ipex AG · Case Management Portal". Below that: quarter · Product Manager name with a "Product Manager" pill badge · Tech Lead name with a "Tech Lead" pill badge — always spelled out in full, never abbreviated "PM"/"TL".
 - Top right: **"View PDF" button** (renamed from "Download PDF" — it opens the PDF in a new browser tab via `window.open`, it does not force a file download; user can save from the browser's own PDF viewer) + Send Report button (primary; label is "Send Report" or "Resend Report" based on `manual_email_sent_at`, shows "Last sent manually on [date]" hint — independent of `status`)
 - Left sidebar navigation to all sections with scroll-spy active highlighting, plain sequential numbering (no "S" prefix in UI)
@@ -1069,7 +1071,12 @@ alter table analysis_results
 ---
 
 ## Last Updated
-July 28, 2026 — Removed public signup in favor of invite-based user management; added Forgot/Reset Password; searchable New Project dropdowns; paginated Users table:
+July 28, 2026 — Restricted report viewing to assigned PM/TL (+ admin):
+- **`src/app/projects/[id]/page.tsx`**: a non-assigned, non-admin user is now redirected to `/dashboard` regardless of `status` — previously any authenticated user could open a project's report once `status` was `ready`/`sent`, even without being the `assigned_pm`/`assigned_tl`. `admin` role is exempted and can still view any project's report once ready/sent.
+- **`src/components/dashboard/ProjectsTable.tsx` (`ActionCell`)**: dashboard Action column no longer shows "View Report" to non-assigned users for `ready`/`sent` projects — they now see a disabled "No Access" button, same as before a report existed. `isAdmin` check added so `role === "admin"` still gets a "View Report" button for any `ready`/`sent` project.
+- No DB/schema change. See Admin role note under `users` schema and the Report Preview Page / Routes sections above for the updated access rules.
+
+July 28, 2026 (earlier same day) — Removed public signup in favor of invite-based user management; added Forgot/Reset Password; searchable New Project dropdowns; paginated Users table:
 - **Signup removed**: `/signup` page and `SignupForm.tsx` deleted. Accounts are now created only via `/users` ("Add User" modal → `inviteUserAction` in `src/app/(app)/users/actions.ts`), which sends an invite email and reuses the existing `/set-password` flow. `/users` page (`UsersView.tsx`, `UsersTable.tsx`, `AddUserModal.tsx`, `AddUserButton.tsx`) and sidebar entry ("User Management") are new; `src/lib/invite.ts` (`generateInviteLink`) and the invite email in `src/lib/email.ts` (`sendInviteEmail`) were introduced with this change
 - **Forgot / Reset Password**: new `/forgot-password` (`ForgotPasswordForm.tsx` + `requestPasswordResetAction`) and `/reset-password` (`ResetPasswordForm.tsx`) pages, mirroring the invite-link pattern — `src/lib/password-reset.ts` (`generatePasswordResetLink`, admin `generateLink({type:"recovery"})`) + `sendPasswordResetEmail`/`buildPasswordResetEmailHtml` in `email.ts`. Always resolves silently regardless of whether the email matches an account (no enumeration signal). Both new routes added to `middleware.ts`'s `PUBLIC_ROUTES`; `/reset-password` deliberately excluded from `REDIRECT_IF_AUTHENTICATED_ROUTES` for the same reason as `/set-password` (its client-side `setSession()` call makes the browser "authenticated" mid-flow). "Forgot password?" link added next to the Password field on `/login`
 - **New Project modal** (`NewProjectModal.tsx`): Business Unit, Assign Product Manager, and Assign Tech Lead converted from plain `<select>` to a shared searchable `SearchableSelect` combobox (search box + filtered option list); "Assign PM"/"Assign TL" labels spelled out in full

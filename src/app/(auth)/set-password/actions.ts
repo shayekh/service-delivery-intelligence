@@ -4,9 +4,8 @@ import { createAdminSupabaseClient } from "@/lib/supabase-admin";
 import { generateInviteLink } from "@/lib/invite";
 import { markPasswordSet } from "@/lib/db";
 import { sendInviteEmail } from "@/lib/email";
-import type { UserRole } from "@/types";
 
-const ROLE_LABELS: Record<UserRole, "Product Manager" | "Tech Lead"> = {
+const ROLE_LABELS: Record<"product_manager" | "tech_lead", "Product Manager" | "Tech Lead"> = {
   product_manager: "Product Manager",
   tech_lead: "Tech Lead",
 };
@@ -23,14 +22,16 @@ export async function resendInviteAction(email: string): Promise<void> {
     .eq("email", email)
     .maybeSingle();
 
-  if (!userRow) return;
+  // admin@sdi.com never goes through the invite flow (seeded directly via
+  // scripts/seed-admin.mjs) — nothing to resend for that role.
+  if (!userRow || userRow.role === "admin") return;
 
   try {
     const { actionLink } = await generateInviteLink(email);
     await sendInviteEmail({
       to: email,
       recipientName: userRow.full_name,
-      role: ROLE_LABELS[userRow.role as UserRole],
+      role: ROLE_LABELS[userRow.role as "product_manager" | "tech_lead"],
       actionLink,
     });
   } catch (err) {

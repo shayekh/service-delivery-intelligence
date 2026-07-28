@@ -10,6 +10,7 @@ import type { User } from "@/types";
 const ROLE_LABELS = {
   product_manager: "Product Manager",
   tech_lead: "Tech Lead",
+  admin: "Admin",
 } as const;
 
 const NAV_ITEMS = [
@@ -75,7 +76,9 @@ export function Sidebar({ user }: { user: User }) {
             "mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium",
             user.role === "product_manager"
               ? "bg-blue-600 text-white"
-              : "bg-slate-700 text-slate-200"
+              : user.role === "admin"
+                ? "bg-purple-600 text-white"
+                : "bg-slate-700 text-slate-200"
           )}
         >
           {ROLE_LABELS[user.role]}
