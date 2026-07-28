@@ -17,7 +17,7 @@ function ItsmEntry({ entry, index }: { entry: ItsmEntry; index: number }) {
     <div
       data-focus-item-id={`itsm-${index}`}
       style={{ scrollMarginTop: "calc(var(--report-header-height, 0px) + var(--focus-lens-bar-height, 0px))" }}
-      className="border-b border-slate-100 py-4 last:border-0"
+      className="rounded-md border-b border-slate-100 px-2 py-4 last:border-0"
     >
       <div className="mb-2 flex items-center gap-2">
         <span className={cn("rounded px-2 py-0.5 text-xs font-bold uppercase", tag.bg, tag.text)}>

@@ -26,7 +26,7 @@ export function CrossAnalysisSummary({
                 key={i}
                 data-focus-item-id={`ca-${i}`}
                 style={{ scrollMarginTop: "calc(var(--report-header-height, 0px) + var(--focus-lens-bar-height, 0px))" }}
-                className={cn("border-l-4 pl-4 py-2", styles.border)}
+                className={cn("rounded-md border-l-4 pl-4 py-2", styles.border)}
               >
                 <div className="mb-1 flex items-center gap-2">
                   <span

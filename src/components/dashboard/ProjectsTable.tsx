@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, FolderOpen, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,15 +9,6 @@ import { DeleteProjectButton } from "@/components/dashboard/DeleteProjectButton"
 import { ColumnHeaderFilter, type FilterOption } from "@/components/ColumnHeaderFilter";
 import { getInitials } from "@/lib/utils";
 import { BUSINESS_UNITS, type ProjectWithAssignees, type User } from "@/types";
-
-const LEGEND_ITEMS = [
-  { label: "Not started", color: "bg-slate-400" },
-  { label: "One role submitted", color: "bg-amber-400" },
-  { label: "Both submitted", color: "bg-indigo-500" },
-  { label: "Report ready", color: "bg-green-500" },
-  { label: "Processing", color: "bg-purple-500" },
-  { label: "Report sent", color: "bg-blue-500" },
-];
 
 const STATUS_OPTIONS = [
   { value: "not_started", label: "Not started" },
@@ -62,7 +53,7 @@ function ActionCell({
     if (!project.tl_submitted) {
       return (
         <Button variant="outline" className={ACTION_BTN_OUTLINE} disabled>
-          View progress
+          View Progress
         </Button>
       );
     }
@@ -86,7 +77,7 @@ function ActionCell({
     if (!project.pm_submitted) {
       return (
         <Button variant="outline" className={ACTION_BTN_OUTLINE} disabled>
-          View progress
+          View Progress
         </Button>
       );
     }
@@ -115,10 +106,12 @@ function ActionCell({
           variant="outline"
           className={ACTION_BTN_OUTLINE}
         >
-          View progress
+          View Progress
         </Button>
       );
     }
+
+    return null;
   }
 
   return (
@@ -147,9 +140,11 @@ function quarterSortValue(quarter: string): number {
 export function ProjectsTable({
   projects,
   currentUser,
+  actions,
 }: {
   projects: ProjectWithAssignees[];
   currentUser: User;
+  actions?: ReactNode;
 }) {
   const [search, setSearch] = useState("");
   const [openColumn, setOpenColumn] = useState<string | null>(null);
@@ -263,18 +258,23 @@ export function ProjectsTable({
 
   if (projects.length === 0) {
     return (
-      <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center rounded-xl bg-white text-center shadow">
-        <FolderOpen className="h-16 w-16 text-slate-300" />
-        {currentUser.role === "product_manager" && (
-          <>
-            <p className="mt-4 text-lg font-medium text-slate-500">
-              No projects yet
-            </p>
-            <p className="mt-1 text-sm text-slate-400">
-              Click &apos;Add Project&apos; to create your first project review
-            </p>
-          </>
+      <div>
+        {actions && (
+          <div className="mb-4 flex items-center justify-end">{actions}</div>
         )}
+        <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center rounded-xl bg-white text-center shadow">
+          <FolderOpen className="h-16 w-16 text-slate-300" />
+          {currentUser.role === "product_manager" && (
+            <>
+              <p className="mt-4 text-lg font-medium text-slate-500">
+                No projects yet
+              </p>
+              <p className="mt-1 text-sm text-slate-400">
+                Click &apos;Add Project&apos; to create your first project review
+              </p>
+            </>
+          )}
+        </div>
       </div>
     );
   }
@@ -282,18 +282,8 @@ export function ProjectsTable({
   return (
     <div>
       <div className="sticky top-0 z-20 mb-4 flex flex-wrap items-center gap-4 bg-gray-50 py-2">
-        {/* Legend */}
-        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 mr-2">
-          {LEGEND_ITEMS.map((item) => (
-            <div key={item.label} className="flex items-center gap-1.5">
-              <span className={`h-2 w-2 rounded-full ${item.color}`} />
-              {item.label}
-            </div>
-          ))}
-        </div>
-
-        <div className="ml-auto flex items-center gap-3">
-        <div className="relative min-w-[300px]">
+        <div className="flex items-center gap-3">
+        <div className="relative min-w-[400px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
@@ -313,11 +303,13 @@ export function ProjectsTable({
           )}
         </div>
         </div>
+
+        {actions && <div className="ml-auto flex items-center">{actions}</div>}
       </div>
 
       <div className="overflow-hidden rounded-xl bg-white shadow">
         <table className="w-full divide-y divide-gray-100">
-          <thead className="sticky top-0 z-10 bg-gray-50">
+          <thead className="sticky top-0 z-10 border-b border-slate-200 bg-gray-50">
             <tr onClick={() => setOpenColumn(null)}>
               <ColumnHeaderFilter
                 columnKey="project"
@@ -382,7 +374,7 @@ export function ProjectsTable({
                 openColumn={openColumn}
                 setOpenColumn={setOpenColumn}
               />
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
+              <th className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-600">
                 Action
               </th>
             </tr>
@@ -431,10 +423,9 @@ export function ProjectsTable({
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center gap-2">
                       <ActionCell project={project} currentUser={currentUser} />
-                      {(project.assigned_pm === currentUser.id ||
-                        project.assigned_tl === currentUser.id) &&
+                      {currentUser.role === "admin" &&
                         !project.pm_submitted &&
                         !project.tl_submitted && (
                           <DeleteProjectButton
