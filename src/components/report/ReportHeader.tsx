@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 import { DownloadPdfButton } from "@/components/report/DownloadPdfButton";
 import { SendReportButton } from "@/components/report/SendReportButton";
 import { TokenCostButton } from "@/components/report/TokenCostButton";
-import type { AnalysisJson, Project, TokenUsage } from "@/types";
+import type { AnalysisJson, PmAnswers, Project, TlAnswers, TokenUsage } from "@/types";
 
 function StatusPill({ status }: { status: Project["status"] }) {
   if (status === "sent") {
@@ -34,11 +35,15 @@ export function ReportHeader({
   analysis,
   tokenUsage,
   costUsd,
+  pmAnswers,
+  tlAnswers,
 }: {
   project: Project;
   analysis: AnalysisJson | null;
   tokenUsage?: TokenUsage | null;
   costUsd?: number | null;
+  pmAnswers?: PmAnswers | null;
+  tlAnswers?: TlAnswers | null;
 }) {
   const preparedBy = analysis?.report_meta.prepared_by ?? "—";
   const parsed = parsePreparedBy(preparedBy);
@@ -78,15 +83,43 @@ export function ReportHeader({
             <span className="text-slate-300">·</span>
             {parsed ? (
               <>
-                <span className="flex items-center gap-1.5">
-                  {parsed.pm}
-                  <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-500">Product Manager</span>
-                </span>
+                {pmAnswers ? (
+                  <Link
+                    href={`/projects/${project.id}/review?role=pm`}
+                    className="flex items-center gap-1.5 rounded-full"
+                  >
+                    {parsed.pm}
+                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-500 transition hover:bg-blue-100">
+                      Product Manager
+                    </span>
+                  </Link>
+                ) : (
+                  <span className="flex items-center gap-1.5">
+                    {parsed.pm}
+                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-500">
+                      Product Manager
+                    </span>
+                  </span>
+                )}
                 <span className="text-slate-300">·</span>
-                <span className="flex items-center gap-1.5">
-                  {parsed.tl}
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Tech Lead</span>
-                </span>
+                {tlAnswers ? (
+                  <Link
+                    href={`/projects/${project.id}/review?role=tl`}
+                    className="flex items-center gap-1.5 rounded-full"
+                  >
+                    {parsed.tl}
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 transition hover:bg-slate-200">
+                      Tech Lead
+                    </span>
+                  </Link>
+                ) : (
+                  <span className="flex items-center gap-1.5">
+                    {parsed.tl}
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                      Tech Lead
+                    </span>
+                  </span>
+                )}
               </>
             ) : (
               <span>Prepared by {preparedBy}</span>

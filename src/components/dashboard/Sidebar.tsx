@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, Settings as SettingsIcon, LogOut, Users } from "lucide-react";
@@ -23,6 +24,7 @@ export function Sidebar({ user }: { user: User }) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const [showProfile, setShowProfile] = useState(false);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -67,22 +69,54 @@ export function Sidebar({ user }: { user: User }) {
         </button>
       </nav>
 
-      <div className="border-t border-slate-800 px-4 py-4">
-        <p className="truncate text-sm font-medium text-white">
-          {user.full_name}
-        </p>
-        <span
-          className={cn(
-            "mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium",
-            user.role === "product_manager"
-              ? "bg-blue-600 text-white"
-              : user.role === "admin"
-                ? "bg-purple-600 text-white"
-                : "bg-slate-700 text-slate-200"
-          )}
+      <div className="relative border-t border-slate-800">
+        {showProfile && (
+          <>
+            <button
+              type="button"
+              aria-label="Close profile"
+              onClick={() => setShowProfile(false)}
+              className="fixed inset-0 z-10 cursor-default"
+            />
+            <div className="absolute inset-x-3 bottom-[calc(100%+0.5rem)] z-20 rounded-md bg-white p-4 shadow-lg">
+              <p className="text-sm font-semibold text-slate-800">{user.full_name}</p>
+              <span
+                className={cn(
+                  "mt-1.5 inline-block rounded-full px-2 py-0.5 text-xs font-medium",
+                  user.role === "product_manager"
+                    ? "bg-blue-600 text-white"
+                    : user.role === "admin"
+                      ? "bg-purple-600 text-white"
+                      : "bg-slate-700 text-slate-200"
+                )}
+              >
+                {ROLE_LABELS[user.role]}
+              </span>
+              <p className="mt-3 truncate text-sm text-slate-500">{user.email}</p>
+            </div>
+          </>
+        )}
+        <button
+          type="button"
+          onClick={() => setShowProfile((v) => !v)}
+          className="relative z-20 w-full px-4 py-4 text-left transition-colors hover:bg-slate-800"
         >
-          {ROLE_LABELS[user.role]}
-        </span>
+          <p className="truncate text-sm font-medium text-white">
+            {user.full_name}
+          </p>
+          <span
+            className={cn(
+              "mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium",
+              user.role === "product_manager"
+                ? "bg-blue-600 text-white"
+                : user.role === "admin"
+                  ? "bg-purple-600 text-white"
+                  : "bg-slate-700 text-slate-200"
+            )}
+          >
+            {ROLE_LABELS[user.role]}
+          </span>
+        </button>
       </div>
     </aside>
   );

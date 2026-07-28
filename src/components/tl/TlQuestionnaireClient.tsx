@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QuestionStep } from "@/components/QuestionStep";
 import { ProgressBar } from "@/components/ProgressBar";
+import { QuestionnaireSidebar } from "@/components/QuestionnaireSidebar";
 import { SubmittingOverlay } from "@/components/SubmittingOverlay";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +31,18 @@ import {
 import type { PmAnswers, Project, StatusColor, TlAnswers, User } from "@/types";
 
 const TOTAL_STEPS = 9;
+
+const SECTION_LABELS = [
+  { step: 1, label: "Technical Delivery" },
+  { step: 2, label: "Delivery Status" },
+  { step: 3, label: "Technical Achievements" },
+  { step: 4, label: "Support & Incidents" },
+  { step: 5, label: "Quality & Health" },
+  { step: 6, label: "Risks & Issues" },
+  { step: 7, label: "ITSM & Technical Maturity" },
+  { step: 8, label: "Next Quarter Focus" },
+  { step: 9, label: "Review Summary" },
+];
 type ChoiceValue = StatusColor | "";
 
 interface TlQ4Data {
@@ -155,16 +168,18 @@ function AnswerTextarea({
   onChange,
   placeholder,
   minHeightClass = "min-h-40",
+  label,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
   minHeightClass?: string;
+  label?: string;
 }) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-medium text-slate-600">
-        Your answer
+      <label className="mb-2 block text-sm font-medium text-slate-800">
+        {label ?? "Your answer"}
       </label>
       <textarea
         value={value}
@@ -384,6 +399,26 @@ export function TlQuestionnaireClient({
     { step: 8, label: "Next Quarter Focus", preview: preview(tlQ7) },
   ];
 
+  const sectionFilled: Record<number, boolean> = {
+    1: tlQ1.trim() !== "",
+    2: tlQ2 !== "",
+    3: tlQ3.trim() !== "",
+    4:
+      ticketCounts.some((row) => row.count.trim() !== "") ||
+      majorIncidents.some((row) => row.issue.trim() !== ""),
+    5: qualityHealth.some((row) => row.observation.trim() !== ""),
+    6: risks.some((row) => row.description.trim() !== ""),
+    7: [itsmTl1, itsmTl2, itsmTl3, itsmTl4, itsmTl5].some(
+      (value) => value.trim() !== ""
+    ),
+    8: tlQ7.trim() !== "",
+    9: false,
+  };
+  const sections = SECTION_LABELS.map((section) => ({
+    ...section,
+    filled: sectionFilled[section.step],
+  }));
+
   if (isSubmitting) {
     return (
       <SubmittingOverlay
@@ -461,6 +496,14 @@ export function TlQuestionnaireClient({
         <ProgressBar step={currentStep} total={TOTAL_STEPS} />
       </header>
 
+      <div className="flex">
+        <QuestionnaireSidebar
+          sections={sections}
+          currentStep={currentStep}
+          onNavigate={goToStep}
+        />
+
+        <main className="min-w-0 flex-1">
       {currentStep === 1 && (
         <QuestionStep
           stepNumber={1}
@@ -575,31 +618,36 @@ export function TlQuestionnaireClient({
             <AnswerTextarea
               value={itsmTl1}
               onChange={setItsmTl1}
-              placeholder="Is the software/infrastructure inventory (CMDB or equivalent) current? Were any major gaps in dependency or EOL tracking found this quarter?"
+              label="Is the software/infrastructure inventory (CMDB or equivalent) current? Were any major gaps in dependency or EOL tracking found this quarter?"
+              placeholder="Your answer..."
               minHeightClass="min-h-24"
             />
             <AnswerTextarea
               value={itsmTl2}
               onChange={setItsmTl2}
-              placeholder="What was the patch/vulnerability remediation cadence this quarter? Were there any overdue critical patches?"
+              label="What was the patch/vulnerability remediation cadence this quarter? Were there any overdue critical patches?"
+              placeholder="Your answer..."
               minHeightClass="min-h-24"
             />
             <AnswerTextarea
               value={itsmTl3}
               onChange={setItsmTl3}
-              placeholder="What percentage of incidents this quarter were caught by automated monitoring vs. client-reported? What's the biggest manual-task automation opportunity right now?"
+              label="What percentage of incidents this quarter were caught by automated monitoring vs. client-reported? What's the biggest manual-task automation opportunity right now?"
+              placeholder="Your answer..."
               minHeightClass="min-h-24"
             />
             <AnswerTextarea
               value={itsmTl4}
               onChange={setItsmTl4}
-              placeholder="Were any recurring issues this quarter analyzed via root cause analysis? What prevention steps came out of it?"
+              label="Were any recurring issues this quarter analyzed via root cause analysis? What prevention steps came out of it?"
+              placeholder="Your answer..."
               minHeightClass="min-h-24"
             />
             <AnswerTextarea
               value={itsmTl5}
               onChange={setItsmTl5}
-              placeholder="Are the client's critical third-party/vendor dependencies inventoried with known failure-mode impact? Did any cause issues this quarter?"
+              label="Are the client's critical third-party/vendor dependencies inventoried with known failure-mode impact? Did any cause issues this quarter?"
+              placeholder="Your answer..."
               minHeightClass="min-h-24"
             />
           </div>
@@ -660,6 +708,8 @@ export function TlQuestionnaireClient({
           {formError && <p className="mt-4 text-sm text-red-600">{formError}</p>}
         </QuestionStep>
       )}
+        </main>
+      </div>
     </div>
   );
 }

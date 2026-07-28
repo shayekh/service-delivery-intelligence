@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireAuth } from "@/lib/auth";
-import { getAnalysisResult, getProjectById } from "@/lib/db";
+import { getAnalysisResult, getPMAnswers, getProjectById, getTLAnswers } from "@/lib/db";
 import { ReportHeader } from "@/components/report/ReportHeader";
 import { ReportSidebar } from "@/components/report/ReportSidebar";
 import { ExecutiveSummary } from "@/components/report/ExecutiveSummary";
@@ -111,10 +111,21 @@ export default async function ProjectDetailPage({
   const analysis = analysisResult.analysis;
   const ss = analysis.section_synthesis;
   const ai = analysis.ai_generated;
+  const [pmAnswers, tlAnswers] = await Promise.all([
+    getPMAnswers(id),
+    getTLAnswers(id),
+  ]);
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <ReportHeader project={project} analysis={analysis} tokenUsage={analysisResult.token_usage} costUsd={analysisResult.cost_usd} />
+      <ReportHeader
+        project={project}
+        analysis={analysis}
+        tokenUsage={analysisResult.token_usage}
+        costUsd={analysisResult.cost_usd}
+        pmAnswers={pmAnswers}
+        tlAnswers={tlAnswers}
+      />
       <FocusLensBar analysis={analysis} />
 
       <div className="flex">
