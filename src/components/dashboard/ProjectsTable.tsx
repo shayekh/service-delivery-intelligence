@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef, type MouseEvent as ReactMouseEvent, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronLeft, ChevronRight, FolderOpen, Filter, Search, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, FolderOpen, Filter, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/StatusChip";
 import { DeleteProjectButton } from "@/components/dashboard/DeleteProjectButton";
@@ -343,8 +343,6 @@ function quarterSortValue(quarter: string): number {
   return Number(year) * 10 + Number(q);
 }
 
-type SortDirection = "asc" | "desc" | null;
-
 export function ProjectsTable({
   projects,
   currentUser,
@@ -365,7 +363,6 @@ export function ProjectsTable({
   });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
-  const [quarterSort, setQuarterSort] = useState<SortDirection>(null);
 
   function setColumnFilter(key: string, values: string[]) {
     setColumnFilters((prev) => ({ ...prev, [key]: values }));
@@ -445,25 +442,14 @@ export function ProjectsTable({
       );
     });
 
-    if (quarterSort) {
-      result.sort((a, b) => {
-        const diff = quarterSortValue(a.quarter) - quarterSortValue(b.quarter);
-        return quarterSort === "asc" ? diff : -diff;
-      });
-    }
-
     return result;
-  }, [projects, search, columnFilters, quarterSort]);
-
-  function toggleQuarterSort() {
-    setQuarterSort((prev) => (prev === null ? "asc" : prev === "asc" ? "desc" : null));
-  }
+  }, [projects, search, columnFilters]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
 
   useEffect(() => {
     setPage(1);
-  }, [search, columnFilters, pageSize, quarterSort]);
+  }, [search, columnFilters, pageSize]);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -567,25 +553,6 @@ export function ProjectsTable({
                 onApply={(v) => setColumnFilter("quarter", v)}
                 openColumn={openColumn}
                 setOpenColumn={setOpenColumn}
-                extra={
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleQuarterSort();
-                    }}
-                    className="flex items-center gap-1 hover:text-slate-700"
-                  >
-                    Quarter
-                    {quarterSort === "asc" ? (
-                      <ArrowUp className="h-3.5 w-3.5" />
-                    ) : quarterSort === "desc" ? (
-                      <ArrowDown className="h-3.5 w-3.5" />
-                    ) : (
-                      <ArrowUpDown className="h-3.5 w-3.5 text-slate-300" />
-                    )}
-                  </button>
-                }
               />
               <ColumnHeaderFilter
                 columnKey="productManager"

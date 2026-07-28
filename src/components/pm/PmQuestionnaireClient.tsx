@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QuestionStep } from "@/components/QuestionStep";
 import { ProgressBar } from "@/components/ProgressBar";
+import { QuestionnaireSidebar } from "@/components/QuestionnaireSidebar";
 import { SubmittingOverlay } from "@/components/SubmittingOverlay";
 import { Button } from "@/components/ui/button";
 import { MetricsTable, type MetricRow } from "@/components/MetricsTable";
@@ -22,6 +23,20 @@ import type { PmAnswers, Project, StatusColor, User } from "@/types";
 
 const TOTAL_STEPS = 11;
 type ChoiceValue = StatusColor | "";
+
+const SECTION_LABELS = [
+  { step: 1, label: "Delivery Overview" },
+  { step: 2, label: "Delivery Status" },
+  { step: 3, label: "Service Overview" },
+  { step: 4, label: "Achievements" },
+  { step: 5, label: "Workstream Status" },
+  { step: 6, label: "Service Metrics" },
+  { step: 7, label: "Customer Relationship" },
+  { step: 8, label: "Relationship Health" },
+  { step: 9, label: "ITSM & Service Maturity" },
+  { step: 10, label: "Additional Notes" },
+  { step: 11, label: "Final Review" },
+];
 
 function parseWorkstreams(raw: string | null): WorkstreamRow[] {
   if (!raw) {
@@ -166,16 +181,18 @@ function AnswerTextarea({
   onChange,
   placeholder,
   minHeightClass = "min-h-40",
+  label,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
   minHeightClass?: string;
+  label?: string;
 }) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-medium text-slate-600">
-        Your answer
+      <label className="mb-2 block text-sm font-medium text-slate-800">
+        {label ?? "Your answer"}
       </label>
       <textarea
         value={value}
@@ -399,6 +416,26 @@ export function PmQuestionnaireClient({
     { step: 10, label: "Additional Notes", preview: preview(notes) },
   ];
 
+  const sectionFilled: Record<number, boolean> = {
+    1: pmQ1.trim() !== "",
+    2: pmQ2 !== "",
+    3: pmQ3.trim() !== "",
+    4: pmQ4.trim() !== "",
+    5: workstreams.some((row) => row.workstream.trim() !== ""),
+    6: metrics.some((row) => row.actual.trim() !== ""),
+    7: Object.values(feedback).some((value) => value.trim() !== ""),
+    8: pmQ8 !== "",
+    9: [itsmPm1, itsmPm2, itsmPm3, itsmPm4, itsmPm5, itsmPm6].some(
+      (value) => value.trim() !== ""
+    ),
+    10: notes.trim() !== "",
+    11: false,
+  };
+  const sections = SECTION_LABELS.map((section) => ({
+    ...section,
+    filled: sectionFilled[section.step],
+  }));
+
   if (isSubmitting) {
     return (
       <SubmittingOverlay
@@ -475,6 +512,14 @@ export function PmQuestionnaireClient({
         <ProgressBar step={currentStep} total={TOTAL_STEPS} />
       </header>
 
+      <div className="flex">
+        <QuestionnaireSidebar
+          sections={sections}
+          currentStep={currentStep}
+          onNavigate={goToStep}
+        />
+
+        <main className="min-w-0 flex-1">
       {currentStep === 1 && (
         <QuestionStep
           stepNumber={1}
@@ -612,37 +657,43 @@ export function PmQuestionnaireClient({
             <AnswerTextarea
               value={itsmPm1}
               onChange={setItsmPm1}
-              placeholder="Were SLAs/SLOs reviewed with the client this quarter, and did they clearly understand what's covered under standard support vs. billable work?"
+              label="Were SLAs/SLOs reviewed with the client this quarter, and did they clearly understand what's covered under standard support vs. billable work?"
+              placeholder="Your answer..."
               minHeightClass="min-h-24"
             />
             <AnswerTextarea
               value={itsmPm2}
               onChange={setItsmPm2}
-              placeholder="Is there a clear line between standard requests (included) and enhancement work (billable/upsell)? Did the client understand this distinction this quarter?"
+              label="Is there a clear line between standard requests (included) and enhancement work (billable/upsell)? Did the client understand this distinction this quarter?"
+              placeholder="Your answer..."
               minHeightClass="min-h-24"
             />
             <AnswerTextarea
               value={itsmPm3}
               onChange={setItsmPm3}
-              placeholder="What proactive ITSM improvements or modernization opportunities were identified and presented to the client this quarter?"
+              label="What proactive ITSM improvements or modernization opportunities were identified and presented to the client this quarter?"
+              placeholder="Your answer..."
               minHeightClass="min-h-24"
             />
             <AnswerTextarea
               value={itsmPm4}
               onChange={setItsmPm4}
-              placeholder="Does the client have a documented, understood escalation path? Was it tested or used correctly if an escalation occurred this quarter?"
+              label="Does the client have a documented, understood escalation path? Was it tested or used correctly if an escalation occurred this quarter?"
+              placeholder="Your answer..."
               minHeightClass="min-h-24"
             />
             <AnswerTextarea
               value={itsmPm5}
               onChange={setItsmPm5}
-              placeholder="What did the team do this quarter to help the client better understand ITSM concepts relevant to their environment?"
+              label="What did the team do this quarter to help the client better understand ITSM concepts relevant to their environment?"
+              placeholder="Your answer..."
               minHeightClass="min-h-24"
             />
             <AnswerTextarea
               value={itsmPm6}
               onChange={setItsmPm6}
-              placeholder="How was the business value and risk of maintenance/change activities communicated to the client this quarter?"
+              label="How was the business value and risk of maintenance/change activities communicated to the client this quarter?"
+              placeholder="Your answer..."
               minHeightClass="min-h-24"
             />
           </div>
@@ -704,6 +755,8 @@ export function PmQuestionnaireClient({
           {formError && <p className="mt-4 text-sm text-red-600">{formError}</p>}
         </QuestionStep>
       )}
+        </main>
+      </div>
     </div>
   );
 }

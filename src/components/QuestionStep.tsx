@@ -18,7 +18,7 @@ export function QuestionStep({
   kind?: "question" | "summary";
   width?: "default" | "full";
   children: ReactNode;
-  footer: ReactNode;
+  footer?: ReactNode;
 }) {
   const prefixWord = kind === "summary" ? "STEP" : "QUESTION";
 
@@ -39,11 +39,13 @@ export function QuestionStep({
         {helper && <p className="mb-6 text-sm text-blue-500">{helper}</p>}
       </div>
 
-      <div className="px-8">{children}</div>
+      <div className="px-8 pb-8">{children}</div>
 
-      <div className="flex items-center justify-between border-t border-slate-100 px-8 py-4">
-        {footer}
-      </div>
+      {footer && (
+        <div className="flex items-center justify-between border-t border-slate-100 px-8 py-4">
+          {footer}
+        </div>
+      )}
     </div>
   );
 }
