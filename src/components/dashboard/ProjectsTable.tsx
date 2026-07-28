@@ -262,6 +262,7 @@ function ActionCell({
 }) {
   const isAssignedPm = project.assigned_pm === currentUser.id;
   const isAssignedTl = project.assigned_tl === currentUser.id;
+  const isAdmin = currentUser.role === "admin";
 
   if (isAssignedPm) {
     if (!project.pm_submitted) {
@@ -311,7 +312,7 @@ function ActionCell({
     );
   }
 
-  if (project.status === "ready" || project.status === "sent") {
+  if (isAdmin && (project.status === "ready" || project.status === "sent")) {
     return (
       <Button render={<Link href={`/projects/${project.id}`} />} variant="outline" className={ACTION_BTN_OUTLINE}>
         View Report
