@@ -189,7 +189,7 @@ export function ColumnHeaderFilter({
     const POPOVER_WIDTH = 256;
     const MARGIN = 8;
     const left = Math.min(
-      Math.max(rect.right - POPOVER_WIDTH, MARGIN),
+      Math.max(rect.right - POPOVER_WIDTH, rect.left, MARGIN),
       window.innerWidth - POPOVER_WIDTH - MARGIN
     );
     setAnchorRect({ top: rect.bottom + 4, left });
@@ -197,7 +197,7 @@ export function ColumnHeaderFilter({
   }
 
   return (
-    <th className="whitespace-nowrap px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
+    <th className="whitespace-nowrap px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
       <div className="flex items-center gap-1.5">
         {extra ?? <span className="whitespace-nowrap">{label}</span>}
         <button

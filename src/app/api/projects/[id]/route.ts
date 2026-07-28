@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase-admin";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { getCurrentUser } from "@/lib/auth";
 import { getProjectById } from "@/lib/db";
 
 export async function DELETE(
@@ -14,17 +14,11 @@ export async function DELETE(
     return NextResponse.json({ error: "Project not found." }, { status: 404 });
   }
 
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
-  if (
-    !user ||
-    (user.id !== project.assigned_pm && user.id !== project.assigned_tl)
-  ) {
+  if (!user || user.role !== "admin") {
     return NextResponse.json(
-      { error: "You are not assigned to this project." },
+      { error: "Only an admin can delete a project." },
       { status: 403 }
     );
   }

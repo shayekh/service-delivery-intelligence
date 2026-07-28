@@ -360,7 +360,7 @@ export function NewProjectModal({
 
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
-              Delivery Cadence
+              Delivery Frequency
             </label>
             <div className="grid grid-cols-2 gap-3">
               {(["monthly", "quarterly"] as ReviewCadence[]).map((option) => (

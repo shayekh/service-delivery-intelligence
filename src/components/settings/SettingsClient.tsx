@@ -144,7 +144,7 @@ function ScheduleSection({ initialSettings }: { initialSettings: Settings }) {
 
       <div className="mb-5">
         <label className="mb-1.5 block text-sm font-medium text-slate-700">
-          Delivery Cadence
+          Delivery Frequency
         </label>
         <div className="flex gap-2">
           {(["monthly", "quarterly"] as const).map((c) => (
