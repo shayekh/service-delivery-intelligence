@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ColumnHeaderFilter, type FilterOption } from "@/components/ColumnHeaderFilter";
 import type { User, UserWithStatus } from "@/types";
 
 export const ROLE_LABELS: Record<User["role"], string> = {
@@ -16,31 +17,90 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50];
 export function UsersTable({ users }: { users: UserWithStatus[] }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
+  const [openColumn, setOpenColumn] = useState<string | null>(null);
+  const [columnFilters, setColumnFilters] = useState<{
+    name: string[];
+    email: string[];
+    role: string[];
+  }>({ name: [], email: [], role: [] });
 
-  const totalPages = Math.max(1, Math.ceil(users.length / pageSize));
+  function setColumnFilter(key: keyof typeof columnFilters, values: string[]) {
+    setColumnFilters((prev) => ({ ...prev, [key]: values }));
+  }
+
+  const columnOptions = useMemo(() => {
+    function uniqueOptions(values: (string | null | undefined)[]): FilterOption[] {
+      const unique = Array.from(new Set(values.filter((v): v is string => !!v)));
+      return unique.sort().map((v) => ({ value: v, label: v }));
+    }
+
+    return {
+      name: uniqueOptions(users.map((u) => u.full_name)),
+      email: uniqueOptions(users.map((u) => u.email)),
+      role: Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label })),
+    };
+  }, [users]);
+
+  const filteredUsers = useMemo(() => {
+    return users.filter((user) => {
+      const matchesName =
+        columnFilters.name.length === 0 || columnFilters.name.includes(user.full_name);
+      const matchesEmail =
+        columnFilters.email.length === 0 || columnFilters.email.includes(user.email);
+      const matchesRole =
+        columnFilters.role.length === 0 || columnFilters.role.includes(user.role);
+      return matchesName && matchesEmail && matchesRole;
+    });
+  }, [users, columnFilters]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
 
   useEffect(() => {
     setPage(1);
-  }, [users, pageSize]);
+  }, [users, pageSize, columnFilters]);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
   const paginatedUsers = useMemo(
-    () => users.slice((page - 1) * pageSize, page * pageSize),
-    [users, page, pageSize]
+    () => filteredUsers.slice((page - 1) * pageSize, page * pageSize),
+    [filteredUsers, page, pageSize]
   );
 
   return (
     <div>
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-left text-sm" onClick={() => setOpenColumn(null)}>
           <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Email</th>
-              <th className="px-4 py-3">Role</th>
+              <ColumnHeaderFilter
+                columnKey="name"
+                label="Name"
+                options={columnOptions.name}
+                selected={columnFilters.name}
+                onApply={(v) => setColumnFilter("name", v)}
+                openColumn={openColumn}
+                setOpenColumn={setOpenColumn}
+              />
+              <ColumnHeaderFilter
+                columnKey="email"
+                label="Email"
+                options={columnOptions.email}
+                selected={columnFilters.email}
+                onApply={(v) => setColumnFilter("email", v)}
+                openColumn={openColumn}
+                setOpenColumn={setOpenColumn}
+              />
+              <ColumnHeaderFilter
+                columnKey="role"
+                label="Role"
+                options={columnOptions.role}
+                selected={columnFilters.role}
+                onApply={(v) => setColumnFilter("role", v)}
+                openColumn={openColumn}
+                setOpenColumn={setOpenColumn}
+              />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -75,12 +135,12 @@ export function UsersTable({ users }: { users: UserWithStatus[] }) {
         </table>
       </div>
 
-      {users.length > 0 && (
+      {filteredUsers.length > 0 && (
         <div className="mt-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <p className="text-sm text-slate-500">
-              Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, users.length)} of{" "}
-              {users.length}
+              Showing {(page - 1) * pageSize + 1}–
+              {Math.min(page * pageSize, filteredUsers.length)} of {filteredUsers.length}
             </p>
             <div className="flex items-center gap-1.5 text-sm text-slate-500">
               <span>Rows per page</span>

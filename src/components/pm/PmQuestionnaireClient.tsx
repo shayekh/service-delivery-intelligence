@@ -479,7 +479,7 @@ export function PmQuestionnaireClient({
   const isLastStep = currentStep === TOTAL_STEPS;
   const footer = (
     <StepFooter
-      onPrevious={currentStep > 1 ? () => goToStep(currentStep - 1) : undefined}
+      onPrevious={currentStep > 1 && !isLastStep ? () => goToStep(currentStep - 1) : undefined}
       onNext={isLastStep ? handleSubmit : () => goToStep(currentStep + 1)}
       nextLabel={isLastStep ? (isSubmitting ? "Submitting..." : "Submit Review") : "Next"}
       nextColor={isLastStep ? "green" : "blue"}
@@ -499,7 +499,8 @@ export function PmQuestionnaireClient({
             />
             <div>
               <p className="text-sm text-slate-500">
-                {project.project_name} · {project.customer_name}
+                {project.customer_name} · {project.project_name} ·{" "}
+                {currentUser.full_name}
               </p>
               <p className="font-bold text-slate-800">Product Manager Review</p>
             </div>
