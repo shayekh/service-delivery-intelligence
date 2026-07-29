@@ -4,11 +4,9 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { inviteUserAction } from "@/app/(app)/users/actions";
+import { updateUserAction } from "@/app/(app)/users/actions";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { BUSINESS_UNITS, type UserRole } from "@/types";
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { BUSINESS_UNITS, type User, type UserRole } from "@/types";
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: "product_manager", label: "Product Manager" },
@@ -17,50 +15,31 @@ const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
 
 interface FormErrors {
   fullName?: string;
-  email?: string;
   role?: string;
   businessUnit?: string;
   form?: string;
 }
 
-export function AddUserModal({
-  open,
+export function EditUserModal({
+  user,
   onClose,
 }: {
-  open: boolean;
+  user: User;
   onClose: () => void;
 }) {
   const router = useRouter();
 
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState<UserRole | null>(null);
-  const [businessUnit, setBusinessUnit] = useState("");
+  const [fullName, setFullName] = useState(user.full_name);
+  const [role, setRole] = useState<UserRole>(
+    user.role === "admin" ? "product_manager" : user.role
+  );
+  const [businessUnit, setBusinessUnit] = useState(user.business_unit ?? "");
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  function resetForm() {
-    setFullName("");
-    setEmail("");
-    setRole(null);
-    setBusinessUnit("");
-    setErrors({});
-  }
-
-  function handleClose() {
-    resetForm();
-    onClose();
-  }
 
   function validate(): FormErrors {
     const nextErrors: FormErrors = {};
     if (!fullName.trim()) nextErrors.fullName = "Name is required.";
-    if (!email.trim()) {
-      nextErrors.email = "Email is required.";
-    } else if (!EMAIL_REGEX.test(email.trim())) {
-      nextErrors.email = "Enter a valid email address.";
-    }
-    if (!role) nextErrors.role = "Select a role.";
     if (!businessUnit) nextErrors.businessUnit = "Business unit is required.";
     return nextErrors;
   }
@@ -75,19 +54,18 @@ export function AddUserModal({
     setIsSubmitting(true);
 
     try {
-      await inviteUserAction({
+      await updateUserAction({
+        id: user.id,
         full_name: fullName.trim(),
-        email: email.trim(),
-        role: role!,
+        role,
         business_unit: businessUnit,
       });
 
-      resetForm();
       onClose();
       router.refresh();
     } catch (err) {
       setErrors({
-        form: err instanceof Error ? err.message : "Could not add user.",
+        form: err instanceof Error ? err.message : "Could not update user.",
       });
     } finally {
       setIsSubmitting(false);
@@ -95,26 +73,13 @@ export function AddUserModal({
   }
 
   return (
-    <>
-      <div
-        className={cn(
-          "fixed inset-0 z-40 bg-black/40 transition-opacity duration-300 ease-in-out",
-          open ? "opacity-100" : "pointer-events-none opacity-0"
-        )}
-        onClick={handleClose}
-      />
-
-      <div
-        className={cn(
-          "fixed right-0 top-0 z-50 flex h-full w-[480px] flex-col bg-white shadow-2xl transition-transform duration-300 ease-in-out",
-          open ? "translate-x-0" : "translate-x-full"
-        )}
-      >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-          <h2 className="text-lg font-semibold text-slate-800">Add User</h2>
+          <h2 className="text-lg font-semibold text-slate-800">Edit User</h2>
           <button
             type="button"
-            onClick={handleClose}
+            onClick={onClose}
             aria-label="Close"
             className="text-slate-400 hover:text-slate-600"
           >
@@ -122,11 +87,7 @@ export function AddUserModal({
           </button>
         </div>
 
-        <form
-          id="add-user-form"
-          onSubmit={handleSubmit}
-          className="flex-1 space-y-4 overflow-y-auto px-6 py-4"
-        >
+        <form id="edit-user-form" onSubmit={handleSubmit} className="space-y-4 px-6 py-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
               Full Name
@@ -135,7 +96,6 @@ export function AddUserModal({
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="e.g. Jane Doe"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
             {errors.fullName && (
@@ -149,14 +109,10 @@ export function AddUserModal({
             </label>
             <input
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="jane.doe@selise.ch"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              value={user.email}
+              disabled
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-500"
             />
-            {errors.email && (
-              <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-            )}
           </div>
 
           <div>
@@ -193,34 +149,30 @@ export function AddUserModal({
                 </button>
               ))}
             </div>
-            {errors.role && (
-              <p className="mt-1 text-sm text-red-600">{errors.role}</p>
-            )}
+            {errors.role && <p className="mt-1 text-sm text-red-600">{errors.role}</p>}
           </div>
 
-          {errors.form && (
-            <p className="text-sm text-red-600">{errors.form}</p>
-          )}
+          {errors.form && <p className="text-sm text-red-600">{errors.form}</p>}
         </form>
 
         <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
           <button
             type="button"
-            onClick={handleClose}
+            onClick={onClose}
             className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
           >
             Cancel
           </button>
           <button
             type="submit"
-            form="add-user-form"
+            form="edit-user-form"
             disabled={isSubmitting}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600/90 disabled:opacity-60"
           >
-            {isSubmitting ? "Adding..." : "Add User"}
+            {isSubmitting ? "Saving..." : "Save Changes"}
           </button>
         </div>
       </div>
-    </>
+    </div>
   );
 }

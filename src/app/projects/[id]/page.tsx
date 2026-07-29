@@ -44,12 +44,17 @@ export default async function ProjectDetailPage({
 
   if (!isAssigned && user.role !== "admin") redirect("/dashboard");
 
-  if (!isReady && user.role === "admin" && !isAssigned) {
+  const isPreSubmission =
+    project.status === "awaiting_pm" || project.status === "awaiting_tl";
+
+  if (!isReady && isPreSubmission) {
+    // Land on whichever role has actually submitted, not the viewer's own
+    // (possibly still-empty) role.
     const defaultRole = project.status === "awaiting_tl" ? "pm" : "tl";
     redirect(`/projects/${id}/review?role=${defaultRole}`);
   }
 
-  // Pending state
+  // Pending state (processing / generating_pdf — surfaces AI generation errors, no redirect target)
   if (!isReady) {
     const STATUS_LABEL: Record<string, string> = {
       not_started: "Neither PM nor TL has submitted yet.",

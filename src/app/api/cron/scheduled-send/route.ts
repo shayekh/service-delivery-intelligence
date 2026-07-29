@@ -4,17 +4,17 @@ import { getAnalysisResultAdmin } from "@/lib/db";
 import { sendReportEmail } from "@/lib/email";
 import type { Project, Settings } from "@/types";
 
-function isScheduledOn(settings: Settings, date: Date): boolean {
-  const dayOfMonth = date.getUTCDate();
+function isSendDay(settings: Settings, date: Date): boolean {
+  return date.getUTCDate() === settings.send_on_day;
+}
 
-  if (dayOfMonth !== settings.send_on_day) return false;
-
-  if (settings.delivery_cadence === "quarterly") {
+function isProjectScheduledOn(cadence: Project["review_cadence"], date: Date): boolean {
+  if (cadence === "quarterly") {
     const month = date.getUTCMonth(); // 0-indexed: 0=Jan, 3=Apr, 6=Jul, 9=Oct
     return month === 0 || month === 3 || month === 6 || month === 9;
   }
 
-  return true; // monthly — day already matched
+  return true; // monthly — day already gated by isSendDay
 }
 
 function resolveDate(request: NextRequest): Date {
@@ -64,9 +64,9 @@ export async function GET(request: NextRequest) {
 
   const settings = settingsData as Settings;
 
-  if (!isScheduledOn(settings, today)) {
+  if (!isSendDay(settings, today)) {
     console.log(
-      `[cron] Not a scheduled send day (cadence=${settings.delivery_cadence}, send_on_day=${settings.send_on_day}, today=${today.toISOString().slice(0, 10)}). Skipping.`
+      `[cron] Not a scheduled send day (send_on_day=${settings.send_on_day}, today=${today.toISOString().slice(0, 10)}). Skipping.`
     );
     return NextResponse.json({ ok: true, skipped: true });
   }
@@ -87,8 +87,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch projects." }, { status: 500 });
   }
 
-  const readyProjects = (projects ?? []) as Project[];
-  console.log(`[cron] Found ${readyProjects.length} ready project(s) to send.`);
+  const readyProjects = (projects ?? []).filter((p) =>
+    isProjectScheduledOn((p as Project).review_cadence, today)
+  ) as Project[];
+  console.log(`[cron] Found ${readyProjects.length} ready project(s) scheduled to send today.`);
 
   const results: { projectId: string; success: boolean; error?: string }[] = [];
 

@@ -5,7 +5,7 @@ import { UsersView } from "@/components/users/UsersView";
 export const dynamic = "force-dynamic";
 
 export default async function UsersPage() {
-  await requireAuth();
+  const currentUser = await requireAuth();
   const users = await getAllUsers();
 
   return (
@@ -17,7 +17,7 @@ export default async function UsersPage() {
         </p>
       </div>
 
-      <UsersView users={users} />
+      <UsersView users={users} currentUser={currentUser} />
     </div>
   );
 }

@@ -53,7 +53,11 @@ function ActionCell({
 
     if (!project.tl_submitted) {
       return (
-        <Button variant="outline" className={ACTION_BTN_OUTLINE} disabled>
+        <Button
+          render={<Link href={`/projects/${project.id}/review?role=pm`} />}
+          variant="outline"
+          className={ACTION_BTN_OUTLINE}
+        >
           View Progress
         </Button>
       );
@@ -77,7 +81,11 @@ function ActionCell({
 
     if (!project.pm_submitted) {
       return (
-        <Button variant="outline" className={ACTION_BTN_OUTLINE} disabled>
+        <Button
+          render={<Link href={`/projects/${project.id}/review?role=tl`} />}
+          variant="outline"
+          className={ACTION_BTN_OUTLINE}
+        >
           View Progress
         </Button>
       );
