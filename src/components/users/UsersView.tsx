@@ -4,9 +4,15 @@ import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { AddUserButton } from "@/components/users/AddUserButton";
 import { UsersTable, ROLE_LABELS } from "@/components/users/UsersTable";
-import type { UserWithStatus } from "@/types";
+import type { User, UserWithStatus } from "@/types";
 
-export function UsersView({ users }: { users: UserWithStatus[] }) {
+export function UsersView({
+  users,
+  currentUser,
+}: {
+  users: UserWithStatus[];
+  currentUser: User;
+}) {
   const [query, setQuery] = useState("");
 
   const filteredUsers = useMemo(() => {
@@ -38,7 +44,7 @@ export function UsersView({ users }: { users: UserWithStatus[] }) {
       </div>
 
       {filteredUsers.length > 0 ? (
-        <UsersTable users={filteredUsers} />
+        <UsersTable users={filteredUsers} currentUser={currentUser} />
       ) : (
         <div className="rounded-lg border border-slate-200 bg-white px-4 py-6 text-center text-slate-400">
           {users.length === 0 ? "No users yet." : "No users match your search."}

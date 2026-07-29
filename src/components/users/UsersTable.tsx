@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ColumnHeaderFilter, type FilterOption } from "@/components/ColumnHeaderFilter";
+import { EditUserModal } from "@/components/users/EditUserModal";
+import { DeleteUserButton } from "@/components/users/DeleteUserButton";
 import { BUSINESS_UNITS, type User, type UserWithStatus } from "@/types";
 
 const BUSINESS_UNIT_FALLBACK = "—";
@@ -21,10 +23,18 @@ export const ROLE_LABELS: Record<User["role"], string> = {
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
-export function UsersTable({ users }: { users: UserWithStatus[] }) {
+export function UsersTable({
+  users,
+  currentUser,
+}: {
+  users: UserWithStatus[];
+  currentUser: User;
+}) {
+  const isAdmin = currentUser.role === "admin";
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
   const [openColumn, setOpenColumn] = useState<string | null>(null);
+  const [editingUser, setEditingUser] = useState<UserWithStatus | null>(null);
   const [columnFilters, setColumnFilters] = useState<{
     name: string[];
     email: string[];
@@ -122,6 +132,11 @@ export function UsersTable({ users }: { users: UserWithStatus[] }) {
                 openColumn={openColumn}
                 setOpenColumn={setOpenColumn}
               />
+              {isAdmin && (
+                <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Actions
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -153,6 +168,25 @@ export function UsersTable({ users }: { users: UserWithStatus[] }) {
                     {ROLE_LABELS[user.role]}
                   </span>
                 </td>
+                {isAdmin && (
+                  <td className="px-6 py-3">
+                    <div className="flex items-center justify-end gap-1">
+                      {user.role !== "admin" && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setEditingUser(user)}
+                            className="rounded p-1.5 text-slate-400 transition hover:bg-blue-50 hover:text-blue-600"
+                            title="Edit user"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <DeleteUserButton userId={user.id} userName={user.full_name} />
+                        </>
+                      )}
+                    </div>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -213,6 +247,10 @@ export function UsersTable({ users }: { users: UserWithStatus[] }) {
             </button>
           </div>
         </div>
+      )}
+
+      {editingUser && (
+        <EditUserModal user={editingUser} onClose={() => setEditingUser(null)} />
       )}
     </div>
   );
