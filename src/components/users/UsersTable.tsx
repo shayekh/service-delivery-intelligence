@@ -4,7 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ColumnHeaderFilter, type FilterOption } from "@/components/ColumnHeaderFilter";
-import type { User, UserWithStatus } from "@/types";
+import { BUSINESS_UNITS, type User, type UserWithStatus } from "@/types";
+
+const BUSINESS_UNIT_FALLBACK = "—";
+
+const BUSINESS_UNIT_OPTIONS = BUSINESS_UNITS.map((unit) => ({
+  value: unit,
+  label: unit,
+}));
 
 export const ROLE_LABELS: Record<User["role"], string> = {
   product_manager: "Product Manager",
@@ -21,8 +28,9 @@ export function UsersTable({ users }: { users: UserWithStatus[] }) {
   const [columnFilters, setColumnFilters] = useState<{
     name: string[];
     email: string[];
+    business_unit: string[];
     role: string[];
-  }>({ name: [], email: [], role: [] });
+  }>({ name: [], email: [], business_unit: [], role: [] });
 
   function setColumnFilter(key: keyof typeof columnFilters, values: string[]) {
     setColumnFilters((prev) => ({ ...prev, [key]: values }));
@@ -37,6 +45,7 @@ export function UsersTable({ users }: { users: UserWithStatus[] }) {
     return {
       name: uniqueOptions(users.map((u) => u.full_name)),
       email: uniqueOptions(users.map((u) => u.email)),
+      business_unit: BUSINESS_UNIT_OPTIONS,
       role: Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label })),
     };
   }, [users]);
@@ -47,9 +56,12 @@ export function UsersTable({ users }: { users: UserWithStatus[] }) {
         columnFilters.name.length === 0 || columnFilters.name.includes(user.full_name);
       const matchesEmail =
         columnFilters.email.length === 0 || columnFilters.email.includes(user.email);
+      const matchesBusinessUnit =
+        columnFilters.business_unit.length === 0 ||
+        (user.business_unit ? columnFilters.business_unit.includes(user.business_unit) : false);
       const matchesRole =
         columnFilters.role.length === 0 || columnFilters.role.includes(user.role);
-      return matchesName && matchesEmail && matchesRole;
+      return matchesName && matchesEmail && matchesBusinessUnit && matchesRole;
     });
   }, [users, columnFilters]);
 
@@ -93,6 +105,15 @@ export function UsersTable({ users }: { users: UserWithStatus[] }) {
                 setOpenColumn={setOpenColumn}
               />
               <ColumnHeaderFilter
+                columnKey="business_unit"
+                label="Business Unit"
+                options={columnOptions.business_unit}
+                selected={columnFilters.business_unit}
+                onApply={(v) => setColumnFilter("business_unit", v)}
+                openColumn={openColumn}
+                setOpenColumn={setOpenColumn}
+              />
+              <ColumnHeaderFilter
                 columnKey="role"
                 label="Role"
                 options={columnOptions.role}
@@ -106,8 +127,8 @@ export function UsersTable({ users }: { users: UserWithStatus[] }) {
           <tbody className="divide-y divide-slate-100">
             {paginatedUsers.map((user) => (
               <tr key={user.id}>
-                <td className="px-4 py-3 font-medium text-slate-800">{user.full_name}</td>
-                <td className="px-4 py-3 text-slate-600">
+                <td className="px-6 py-3 font-medium text-slate-800">{user.full_name}</td>
+                <td className="px-6 py-3 text-slate-600">
                   {user.email}
                   {user.is_pending && (
                     <span className="ml-2 inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">
@@ -115,7 +136,10 @@ export function UsersTable({ users }: { users: UserWithStatus[] }) {
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-6 py-3 text-slate-600">
+                  {user.business_unit ?? BUSINESS_UNIT_FALLBACK}
+                </td>
+                <td className="px-6 py-3">
                   <span
                     className={cn(
                       "inline-block rounded-full px-2.5 py-0.5 text-xs font-medium",

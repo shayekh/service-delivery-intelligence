@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { inviteUserAction } from "@/app/(app)/users/actions";
-import type { UserRole } from "@/types";
+import { SearchableSelect } from "@/components/SearchableSelect";
+import { BUSINESS_UNITS, type UserRole } from "@/types";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -18,6 +19,7 @@ interface FormErrors {
   fullName?: string;
   email?: string;
   role?: string;
+  businessUnit?: string;
   form?: string;
 }
 
@@ -33,6 +35,7 @@ export function AddUserModal({
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<UserRole | null>(null);
+  const [businessUnit, setBusinessUnit] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -40,6 +43,7 @@ export function AddUserModal({
     setFullName("");
     setEmail("");
     setRole(null);
+    setBusinessUnit("");
     setErrors({});
   }
 
@@ -57,6 +61,7 @@ export function AddUserModal({
       nextErrors.email = "Enter a valid email address.";
     }
     if (!role) nextErrors.role = "Select a role.";
+    if (!businessUnit) nextErrors.businessUnit = "Business unit is required.";
     return nextErrors;
   }
 
@@ -74,6 +79,7 @@ export function AddUserModal({
         full_name: fullName.trim(),
         email: email.trim(),
         role: role!,
+        business_unit: businessUnit,
       });
 
       resetForm();
@@ -151,6 +157,19 @@ export function AddUserModal({
             {errors.email && (
               <p className="mt-1 text-sm text-red-600">{errors.email}</p>
             )}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Business Unit
+            </label>
+            <SearchableSelect
+              value={businessUnit}
+              onChange={setBusinessUnit}
+              options={BUSINESS_UNITS.map((unit) => ({ value: unit, label: unit }))}
+              placeholder="Select business unit"
+              error={errors.businessUnit}
+            />
           </div>
 
           <div>

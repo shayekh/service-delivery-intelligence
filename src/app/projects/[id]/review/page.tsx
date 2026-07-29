@@ -29,9 +29,10 @@ export default async function AnswersReviewPage({
   if (!isAssigned && user.role !== "admin") redirect("/dashboard");
 
   const isReady = project.status === "ready" || project.status === "sent";
-  // /projects/[id] redirects non-assigned admins straight back here when the
-  // report isn't ready yet — linking there would just bounce back-and-forth.
-  const backHref = isReady || isAssigned ? `/projects/${id}` : "/dashboard";
+  // /projects/[id] redirects straight back here whenever the report isn't
+  // ready yet (for both assigned users and admins) — linking there in that
+  // case would just bounce back-and-forth, so only use it once ready.
+  const backHref = isReady ? `/projects/${id}` : "/dashboard";
 
   const [pmAnswers, tlAnswers, pmUser, tlUser] = await Promise.all([
     getPMAnswers(id),

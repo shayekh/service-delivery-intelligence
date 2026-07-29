@@ -34,6 +34,7 @@ export interface User {
   email: string;
   full_name: string;
   role: UserRole;
+  business_unit: string | null;
   created_at: string;
   password_set_at: string | null;
 }

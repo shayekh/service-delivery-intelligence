@@ -15,10 +15,12 @@ export async function inviteUserAction({
   full_name,
   email,
   role,
+  business_unit,
 }: {
   full_name: string;
   email: string;
   role: UserRole;
+  business_unit: string;
 }): Promise<User> {
   await requireAuth();
 
@@ -47,7 +49,7 @@ export async function inviteUserAction({
 
   const { data: userRow, error: insertError } = await admin
     .from("users")
-    .upsert({ id: userId, email, full_name, role }, { onConflict: "id" })
+    .upsert({ id: userId, email, full_name, role, business_unit }, { onConflict: "id" })
     .select("*")
     .single();
 

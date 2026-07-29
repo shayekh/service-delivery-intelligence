@@ -13,7 +13,7 @@ export function UsersView({ users }: { users: UserWithStatus[] }) {
     const q = query.trim().toLowerCase();
     if (!q) return users;
     return users.filter((user) =>
-      [user.full_name, user.email, ROLE_LABELS[user.role]]
+      [user.full_name, user.email, user.business_unit ?? "", ROLE_LABELS[user.role]]
         .join(" ")
         .toLowerCase()
         .includes(q)
@@ -29,7 +29,7 @@ export function UsersView({ users }: { users: UserWithStatus[] }) {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by name, email, or role"
+            placeholder="Search..."
             className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
           />
         </div>

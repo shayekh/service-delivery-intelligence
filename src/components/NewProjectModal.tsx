@@ -1,98 +1,12 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useId, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronDown, Search, X } from "lucide-react";
+import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createProjectAction, updateProjectAction } from "@/app/(app)/dashboard/actions";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { BUSINESS_UNITS, type AnalysisMode, type Project, type ReviewCadence, type User } from "@/types";
-
-function SearchableSelect({
-  value,
-  onChange,
-  options,
-  placeholder,
-  error,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  options: { value: string; label: string }[];
-  placeholder: string;
-  error?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setOpen(false);
-        setQuery("");
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const selected = options.find((o) => o.value === value);
-  const filtered = options.filter((o) =>
-    o.label.toLowerCase().includes(query.toLowerCase())
-  );
-
-  return (
-    <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className={cn(
-          "flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 text-left outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500",
-          !selected && "text-slate-400"
-        )}
-      >
-        <span>{selected ? selected.label : placeholder}</span>
-        <ChevronDown className="h-4 w-4 text-slate-400" />
-      </button>
-
-      {open && (
-        <div className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg">
-          <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-2">
-            <Search className="h-4 w-4 text-slate-400" />
-            <input
-              autoFocus
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search..."
-              className="w-full text-sm outline-none"
-            />
-          </div>
-          <div className="max-h-48 overflow-y-auto py-1">
-            {filtered.length === 0 && (
-              <div className="px-3 py-2 text-sm text-slate-400">No matches found.</div>
-            )}
-            {filtered.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => {
-                  onChange(option.value);
-                  setOpen(false);
-                  setQuery("");
-                }}
-                className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-50"
-              >
-                {option.label}
-                {option.value === value && <Check className="h-4 w-4 text-blue-600" />}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
-    </div>
-  );
-}
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"] as const;
@@ -239,6 +153,9 @@ export function NewProjectModal({
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const filteredPmUsers = pmUsers.filter((pm) => pm.business_unit === businessUnit);
+  const filteredTlUsers = tlUsers.filter((tl) => tl.business_unit === businessUnit);
+
   function resetForm() {
     const fresh = initialState();
     setProjectName(fresh.projectName);
@@ -251,6 +168,16 @@ export function NewProjectModal({
     setAssignedTl(fresh.assignedTl);
     setEmails(fresh.emails);
     setErrors({});
+  }
+
+  function handleBusinessUnitChange(nextBusinessUnit: string) {
+    setBusinessUnit(nextBusinessUnit);
+    if (!pmUsers.some((pm) => pm.id === assignedPm && pm.business_unit === nextBusinessUnit)) {
+      setAssignedPm("");
+    }
+    if (!tlUsers.some((tl) => tl.id === assignedTl && tl.business_unit === nextBusinessUnit)) {
+      setAssignedTl("");
+    }
   }
 
   function handleClose() {
@@ -403,7 +330,7 @@ export function NewProjectModal({
             </label>
             <SearchableSelect
               value={businessUnit}
-              onChange={setBusinessUnit}
+              onChange={handleBusinessUnitChange}
               options={BUSINESS_UNITS.map((unit) => ({ value: unit, label: unit }))}
               placeholder="Select business unit"
               error={errors.businessUnit}
@@ -471,9 +398,12 @@ export function NewProjectModal({
             <SearchableSelect
               value={assignedPm}
               onChange={setAssignedPm}
-              options={pmUsers.map((pm) => ({ value: pm.id, label: pm.full_name }))}
-              placeholder="Select Product Manager"
+              options={filteredPmUsers.map((pm) => ({ value: pm.id, label: pm.full_name }))}
+              placeholder={
+                businessUnit ? "Select Product Manager" : "Select a business unit first"
+              }
               error={errors.assignedPm}
+              disabled={!businessUnit}
             />
           </div>
 
@@ -484,9 +414,10 @@ export function NewProjectModal({
             <SearchableSelect
               value={assignedTl}
               onChange={setAssignedTl}
-              options={tlUsers.map((tl) => ({ value: tl.id, label: tl.full_name }))}
-              placeholder="Select Tech Lead"
+              options={filteredTlUsers.map((tl) => ({ value: tl.id, label: tl.full_name }))}
+              placeholder={businessUnit ? "Select Tech Lead" : "Select a business unit first"}
               error={errors.assignedTl}
+              disabled={!businessUnit}
             />
           </div>
 
