@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronDown, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { createProjectAction } from "@/app/(app)/dashboard/actions";
-import { BUSINESS_UNITS, type AnalysisMode, type ReviewCadence, type User } from "@/types";
+import { createProjectAction, updateProjectAction } from "@/app/(app)/dashboard/actions";
+import { BUSINESS_UNITS, type AnalysisMode, type Project, type ReviewCadence, type User } from "@/types";
 
 function SearchableSelect({
   value,
@@ -171,44 +171,85 @@ function EmailTagInput({
   );
 }
 
+function parseQuarter(quarter: string): { q: (typeof QUARTERS)[number]; year: number } {
+  const match = quarter.match(/Q([1-4])\s*(\d{4})/);
+  if (!match) return { q: "Q1", year: CURRENT_YEAR };
+  return { q: `Q${match[1]}` as (typeof QUARTERS)[number], year: Number(match[2]) };
+}
+
 export function NewProjectModal({
   open,
   onClose,
   pmUsers,
   tlUsers,
   currentUserId,
+  project,
 }: {
   open: boolean;
   onClose: () => void;
   pmUsers: User[];
   tlUsers: User[];
   currentUserId: string;
+  project?: Project;
 }) {
   const router = useRouter();
+  const isEditMode = !!project;
+  const formId = `new-project-form-${useId()}`;
 
-  const [projectName, setProjectName] = useState("");
-  const [customerName, setCustomerName] = useState("");
-  const [businessUnit, setBusinessUnit] = useState("");
-  const [cadence, setCadence] = useState<ReviewCadence>("quarterly");
-  const [quarter, setQuarter] = useState<(typeof QUARTERS)[number]>("Q1");
-  const [year, setYear] = useState(CURRENT_YEAR);
-  const [assignedPm, setAssignedPm] = useState("");
-  const [assignedTl, setAssignedTl] = useState("");
-  const [emails, setEmails] = useState<string[]>([]);
+  function initialState() {
+    if (!project) {
+      return {
+        projectName: "",
+        customerName: "",
+        businessUnit: "",
+        cadence: "quarterly" as ReviewCadence,
+        quarter: "Q1" as (typeof QUARTERS)[number],
+        year: CURRENT_YEAR,
+        assignedPm: "",
+        assignedTl: "",
+        emails: [] as string[],
+      };
+    }
+    const { q, year } = parseQuarter(project.quarter);
+    return {
+      projectName: project.project_name,
+      customerName: project.customer_name,
+      businessUnit: project.business_unit ?? "",
+      cadence: project.review_cadence,
+      quarter: q,
+      year,
+      assignedPm: project.assigned_pm ?? "",
+      assignedTl: project.assigned_tl ?? "",
+      emails: project.recipient_emails ?? [],
+    };
+  }
+
+  const initial = initialState();
+
+  const [projectName, setProjectName] = useState(initial.projectName);
+  const [customerName, setCustomerName] = useState(initial.customerName);
+  const [businessUnit, setBusinessUnit] = useState(initial.businessUnit);
+  const [cadence, setCadence] = useState<ReviewCadence>(initial.cadence);
+  const [quarter, setQuarter] = useState<(typeof QUARTERS)[number]>(initial.quarter);
+  const [year, setYear] = useState(initial.year);
+  const [assignedPm, setAssignedPm] = useState(initial.assignedPm);
+  const [assignedTl, setAssignedTl] = useState(initial.assignedTl);
+  const [emails, setEmails] = useState<string[]>(initial.emails);
   const [analysisMode] = useState<AnalysisMode>("deterministic");
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   function resetForm() {
-    setProjectName("");
-    setCustomerName("");
-    setBusinessUnit("");
-    setCadence("quarterly");
-    setQuarter("Q1");
-    setYear(CURRENT_YEAR);
-    setAssignedPm("");
-    setAssignedTl("");
-    setEmails([]);
+    const fresh = initialState();
+    setProjectName(fresh.projectName);
+    setCustomerName(fresh.customerName);
+    setBusinessUnit(fresh.businessUnit);
+    setCadence(fresh.cadence);
+    setQuarter(fresh.quarter);
+    setYear(fresh.year);
+    setAssignedPm(fresh.assignedPm);
+    setAssignedTl(fresh.assignedTl);
+    setEmails(fresh.emails);
     setErrors({});
   }
 
@@ -255,7 +296,7 @@ export function NewProjectModal({
     setIsSubmitting(true);
 
     try {
-      await createProjectAction({
+      const input = {
         project_name: projectName.trim(),
         customer_name: customerName.trim(),
         business_unit: businessUnit,
@@ -266,14 +307,23 @@ export function NewProjectModal({
         recipient_emails: emails,
         created_by: currentUserId,
         analysis_mode: analysisMode,
-      });
+      };
+
+      if (isEditMode && project) {
+        await updateProjectAction(project.id, input);
+      } else {
+        await createProjectAction(input);
+      }
 
       resetForm();
       onClose();
       router.refresh();
     } catch (err) {
       setErrors({
-        form: err instanceof Error ? err.message : "Could not create project.",
+        form:
+          err instanceof Error
+            ? err.message
+            : `Could not ${isEditMode ? "update" : "create"} project.`,
       });
     } finally {
       setIsSubmitting(false);
@@ -297,7 +347,9 @@ export function NewProjectModal({
         )}
       >
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-          <h2 className="text-lg font-semibold text-slate-800">New Project</h2>
+          <h2 className="text-lg font-semibold text-slate-800">
+            {isEditMode ? "Edit Project" : "New Project"}
+          </h2>
           <button
             type="button"
             onClick={handleClose}
@@ -309,7 +361,7 @@ export function NewProjectModal({
         </div>
 
         <form
-          id="new-project-form"
+          id={formId}
           onSubmit={handleSubmit}
           className="flex-1 space-y-4 overflow-y-auto px-6 py-4"
         >
@@ -489,11 +541,17 @@ export function NewProjectModal({
           </button>
           <button
             type="submit"
-            form="new-project-form"
+            form={formId}
             disabled={isSubmitting}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600/90 disabled:opacity-50"
           >
-            {isSubmitting ? "Creating..." : "Create Project"}
+            {isSubmitting
+              ? isEditMode
+                ? "Saving..."
+                : "Creating..."
+              : isEditMode
+                ? "Save Changes"
+                : "Create Project"}
           </button>
         </div>
       </div>

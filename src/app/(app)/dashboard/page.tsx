@@ -25,6 +25,8 @@ export default async function DashboardPage() {
       <ProjectsTable
         projects={projects}
         currentUser={user}
+        pmUsers={pmUsers}
+        tlUsers={tlUsers}
         actions={
           <AddProjectButton
             pmUsers={pmUsers}

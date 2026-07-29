@@ -45,7 +45,7 @@ export function StatusChip({
   return (
     <span
       className={cn(
-        "rounded-full px-3 py-1 text-xs font-medium",
+        "whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium",
         CHIP_STYLES[color]
       )}
     >
