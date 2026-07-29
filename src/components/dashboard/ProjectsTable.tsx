@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, FolderOpen, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/StatusChip";
 import { DeleteProjectButton } from "@/components/dashboard/DeleteProjectButton";
+import { EditProjectButton } from "@/components/dashboard/EditProjectButton";
 import { ColumnHeaderFilter, type FilterOption } from "@/components/ColumnHeaderFilter";
 import { getInitials } from "@/lib/utils";
 import { BUSINESS_UNITS, type ProjectWithAssignees, type User } from "@/types";
@@ -141,10 +142,14 @@ export function ProjectsTable({
   projects,
   currentUser,
   actions,
+  pmUsers,
+  tlUsers,
 }: {
   projects: ProjectWithAssignees[];
   currentUser: User;
   actions?: ReactNode;
+  pmUsers?: User[];
+  tlUsers?: User[];
 }) {
   const [search, setSearch] = useState("");
   const [openColumn, setOpenColumn] = useState<string | null>(null);
@@ -428,10 +433,20 @@ export function ProjectsTable({
                       {currentUser.role === "admin" &&
                         !project.pm_submitted &&
                         !project.tl_submitted && (
-                          <DeleteProjectButton
-                            projectId={project.id}
-                            projectName={project.project_name}
-                          />
+                          <>
+                            {pmUsers && tlUsers && (
+                              <EditProjectButton
+                                project={project}
+                                pmUsers={pmUsers}
+                                tlUsers={tlUsers}
+                                currentUserId={currentUser.id}
+                              />
+                            )}
+                            <DeleteProjectButton
+                              projectId={project.id}
+                              projectName={project.project_name}
+                            />
+                          </>
                         )}
                     </div>
                   </td>

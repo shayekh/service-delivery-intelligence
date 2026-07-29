@@ -122,6 +122,34 @@ export async function createProject(
   return created as Project;
 }
 
+export async function updateProject(
+  id: string,
+  data: CreateProjectInput
+): Promise<Project> {
+  const supabase = await createServerSupabaseClient();
+  const { data: updated, error } = await supabase
+    .from("projects")
+    .update(data)
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return updated as Project;
+}
+
+export async function deletePmDraft(projectId: string): Promise<void> {
+  const admin = createAdminSupabaseClient();
+  const { error } = await admin.from("pm_answers").delete().eq("project_id", projectId);
+  if (error) throw error;
+}
+
+export async function deleteTlDraft(projectId: string): Promise<void> {
+  const admin = createAdminSupabaseClient();
+  const { error } = await admin.from("tl_answers").delete().eq("project_id", projectId);
+  if (error) throw error;
+}
+
 export async function updateProjectStatus(
   id: string,
   status: Project["status"]
