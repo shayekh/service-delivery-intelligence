@@ -72,7 +72,7 @@ export function UsersTable({ users }: { users: UserWithStatus[] }) {
     <div>
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
         <table className="w-full text-left text-sm" onClick={() => setOpenColumn(null)}>
-          <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <thead className="bg-slate-50">
             <tr>
               <ColumnHeaderFilter
                 columnKey="name"

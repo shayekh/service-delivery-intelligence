@@ -100,17 +100,12 @@ function EmailChipInput({
 // ─── Schedule section ────────────────────────────────────────────────────────
 
 function ScheduleSection({ initialSettings }: { initialSettings: Settings }) {
-  const [cadence, setCadence] = useState<"monthly" | "quarterly">(
-    initialSettings.delivery_cadence
-  );
   const [sendDay, setSendDay] = useState(initialSettings.send_on_day);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const changed =
-    cadence !== initialSettings.delivery_cadence ||
-    sendDay !== initialSettings.send_on_day;
+  const changed = sendDay !== initialSettings.send_on_day;
 
   async function save() {
     setSaving(true);
@@ -119,7 +114,7 @@ function ScheduleSection({ initialSettings }: { initialSettings: Settings }) {
       const res = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ delivery_cadence: cadence, send_on_day: sendDay }),
+        body: JSON.stringify({ send_on_day: sendDay }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -139,30 +134,11 @@ function ScheduleSection({ initialSettings }: { initialSettings: Settings }) {
     <div className="rounded-xl bg-white p-6 shadow">
       <h2 className="mb-1 text-base font-semibold text-slate-800">Schedule</h2>
       <p className="mb-5 text-sm text-slate-500">
-        Controls when automated reports are sent.
+        Select the day of the month when automated reports are checked and
+        sent. Each project&apos;s delivery schedule (Monthly or Quarterly)
+        determines whether reports are sent monthly or only in Jan / Apr /
+        Jul / Oct.
       </p>
-
-      <div className="mb-5">
-        <label className="mb-1.5 block text-sm font-medium text-slate-700">
-          Delivery Frequency
-        </label>
-        <div className="flex gap-2">
-          {(["monthly", "quarterly"] as const).map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setCadence(c)}
-              className={`rounded-lg border px-5 py-2 text-sm font-medium capitalize transition ${
-                cadence === c
-                  ? "border-blue-600 bg-blue-600 text-white"
-                  : "border-slate-200 bg-white text-slate-700 hover:border-blue-300"
-              }`}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-      </div>
 
       <div className="mb-5">
         <label className="mb-1.5 block text-sm font-medium text-slate-700">
@@ -177,9 +153,8 @@ function ScheduleSection({ initialSettings }: { initialSettings: Settings }) {
           className="w-24 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
         <p className="mt-1.5 text-xs text-slate-400">
-          {cadence === "quarterly"
-            ? "Quarterly reports are sent in Jan / Apr / Jul / Oct on this day."
-            : "Monthly reports are sent every month on this day."}
+          Monthly projects send every month on this day; quarterly projects
+          send in Jan / Apr / Jul / Oct on this day.
         </p>
       </div>
 
