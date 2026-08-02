@@ -222,7 +222,7 @@ created_at  timestamp
 id                uuid primary key
 project_name      text
 customer_name     text        -- UI label is "Account Name" (see Business Unit note below) — column name unchanged
-business_unit     text        -- one of 16 fixed values (Retail & Services (RNB), Insurance & Banking (INB), Manufacturing & Engineering (MNE), Telecom & Technology (TNT), Blocks BD-ST (BLK), ORDERMONKEY (OMK), Signature (SIG), Total Experience Lab (TXL), GenesisX (GNX), Human Resource (HMR), Finance & Legal (FNL), Marketing (MKT), General Admin (GAM), IT Operations (ITO), Consulting (CON), Sourcing (SRC)); required on New Project form; nullable in DB for legacy pre-migration rows (dashboard shows "—" if null)
+business_unit     text        -- one of 16 fixed values (Retail & Services (RNS), Insurance & Banking (INB), Manufacturing & Engineering (MNE), Telecom & Technology (TNT), Blocks BD-ST (BLK), ORDERMONKEY (OMK), Signature (SIG), Total Experience Lab (TXL), GenesisX (GNX), Human Resource (HMR), Finance & Legal (FNL), Marketing (MKT), General Admin (GAM), IT Operations (ITO), Consulting (CON), Sourcing (SRC)); required on New Project form; nullable in DB for legacy pre-migration rows (dashboard shows "—" if null)
 review_cadence    text        -- 'monthly' | 'quarterly'
 quarter           text        -- 'Q1 2026' | 'Q2 2026' | 'Q3 2026' | 'Q4 2026'
 start_date        date        -- auto set on creation

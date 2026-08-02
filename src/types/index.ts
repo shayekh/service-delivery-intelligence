@@ -4,7 +4,7 @@ export type ReviewCadence = "monthly" | "quarterly";
 export type AnalysisMode = "deterministic" | "non_deterministic";
 
 export const BUSINESS_UNITS = [
-  "Retail & Services (RNB)",
+  "Retail & Services (RNS)",
   "Insurance & Banking (INB)",
   "Manufacturing & Engineering (MNE)",
   "Telecom & Technology (TNT)",
