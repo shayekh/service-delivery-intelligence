@@ -75,12 +75,17 @@ export function AddUserModal({
     setIsSubmitting(true);
 
     try {
-      await inviteUserAction({
+      const result = await inviteUserAction({
         full_name: fullName.trim(),
         email: email.trim(),
         role: role!,
         business_unit: businessUnit,
       });
+
+      if (!result.success) {
+        setErrors({ form: result.error });
+        return;
+      }
 
       resetForm();
       onClose();

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { deleteUserAction } from "@/app/(app)/users/actions";
 
@@ -16,17 +17,19 @@ export function DeleteUserButton({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleDelete() {
     setLoading(true);
-    setError(null);
     try {
       await deleteUserAction({ id: userId });
       setOpen(false);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete user.");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong while deleting this user. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -36,10 +39,7 @@ export function DeleteUserButton({
     <>
       <button
         type="button"
-        onClick={() => {
-          setError(null);
-          setOpen(true);
-        }}
+        onClick={() => setOpen(true)}
         className="rounded p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-500"
         title="Delete user"
       >
@@ -54,7 +54,6 @@ export function DeleteUserButton({
               <strong>{userName}</strong> will be permanently deleted. This can&apos;t be
               undone.
             </p>
-            {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
             <div className="mt-6 flex justify-end gap-3">
               <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>
                 Cancel

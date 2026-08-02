@@ -11,6 +11,15 @@ const ROLE_LABELS: Record<"product_manager" | "tech_lead", "Product Manager" | "
   tech_lead: "Tech Lead",
 };
 
+export type InviteUserResult =
+  | { success: true; user: User }
+  | { success: false; error: string };
+
+// Returns a result object rather than throwing for expected failures
+// (duplicate email, etc.) because Next.js redacts thrown Server Action
+// error messages in production builds, replacing them with a generic
+// "An error occurred in the Server Components render..." message. That
+// masking made even user-facing validation errors unreadable in prod.
 export async function inviteUserAction({
   full_name,
   email,
@@ -21,13 +30,13 @@ export async function inviteUserAction({
   email: string;
   role: UserRole;
   business_unit: string;
-}): Promise<User> {
+}): Promise<InviteUserResult> {
   await requireAuth();
 
   // Admin accounts are never created through this invite flow (seeded
   // directly via scripts/seed-admin.mjs).
   if (role === "admin") {
-    throw new Error("Admin accounts cannot be created through the invite flow.");
+    return { success: false, error: "Admin accounts cannot be created through the invite flow." };
   }
 
   const admin = createAdminSupabaseClient();
@@ -39,10 +48,10 @@ export async function inviteUserAction({
     .maybeSingle();
 
   if (existingError) {
-    throw new Error(existingError.message);
+    return { success: false, error: existingError.message };
   }
   if (existingRow) {
-    throw new Error("A user with this email address already exists.");
+    return { success: false, error: "A user with this email address already exists." };
   }
 
   const { userId, actionLink } = await generateInviteLink(email);
@@ -54,7 +63,10 @@ export async function inviteUserAction({
     .single();
 
   if (insertError) {
-    throw new Error(insertError.message);
+    const message = insertError.code === "23505"
+      ? "A user with this email address already exists."
+      : insertError.message;
+    return { success: false, error: message };
   }
 
   await sendInviteEmail({
@@ -64,7 +76,7 @@ export async function inviteUserAction({
     actionLink,
   });
 
-  return userRow as User;
+  return { success: true, user: userRow as User };
 }
 
 export async function updateUserAction({
@@ -137,9 +149,7 @@ export async function deleteUserAction({ id }: { id: string }): Promise<void> {
     throw new Error(assignedError.message);
   }
   if (assignedCount && assignedCount > 0) {
-    throw new Error(
-      "This user is assigned as Product Manager or Tech Lead on one or more projects. Reassign those projects before deleting this user."
-    );
+    throw new Error("This user is assigned to one or more projects and cannot be deleted.");
   }
 
   const { error: authError } = await admin.auth.admin.deleteUser(id);
@@ -149,6 +159,6 @@ export async function deleteUserAction({ id }: { id: string }): Promise<void> {
 
   const { error: rowError } = await admin.from("users").delete().eq("id", id);
   if (rowError) {
-    throw new Error(rowError.message);
+    throw new Error(`User's login was removed, but deleting their user record failed: ${rowError.message}`);
   }
 }
