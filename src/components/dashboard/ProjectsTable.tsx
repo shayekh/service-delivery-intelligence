@@ -325,20 +325,20 @@ export function ProjectsTable({
           <thead className="sticky top-0 z-10 border-b border-slate-200 bg-gray-50">
             <tr onClick={() => setOpenColumn(null)}>
               <ColumnHeaderFilter
+                columnKey="accountName"
+                label="Account"
+                options={columnOptions.accountName}
+                selected={columnFilters.accountName}
+                onApply={(v) => setColumnFilter("accountName", v)}
+                openColumn={openColumn}
+                setOpenColumn={setOpenColumn}
+              />
+              <ColumnHeaderFilter
                 columnKey="project"
                 label="Project"
                 options={columnOptions.project}
                 selected={columnFilters.project}
                 onApply={(v) => setColumnFilter("project", v)}
-                openColumn={openColumn}
-                setOpenColumn={setOpenColumn}
-              />
-              <ColumnHeaderFilter
-                columnKey="accountName"
-                label="Account Name"
-                options={columnOptions.accountName}
-                selected={columnFilters.accountName}
-                onApply={(v) => setColumnFilter("accountName", v)}
                 openColumn={openColumn}
                 setOpenColumn={setOpenColumn}
               />
@@ -405,15 +405,15 @@ export function ProjectsTable({
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
-                        {getInitials(project.project_name)}
+                        {getInitials(project.customer_name)}
                       </div>
                       <p className="font-medium text-slate-800">
-                        {project.project_name}
+                        {project.customer_name}
                       </p>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-800">
-                    {project.customer_name}
+                    {project.project_name}
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-800">
                     {project.business_unit || "—"}
