@@ -164,12 +164,14 @@ function buildAssignmentEmailHtml({
   projectName,
   customerName,
   quarter,
+  appUrl,
 }: {
   recipientName: string;
   role: "Product Manager" | "Tech Lead";
   projectName: string;
   customerName: string;
   quarter: string;
+  appUrl: string;
 }): string {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -213,7 +215,7 @@ function buildAssignmentEmailHtml({
                 Please log in and complete your review questionnaire for this project when ready.
               </p>
               <p style="margin:0 0 24px;text-align:center;">
-                <a href="https://service-delivery-intelligence-l.vercel.app/" style="display:inline-block;background:#2563eb;color:#ffffff;font-size:14px;font-weight:600;padding:10px 24px;border-radius:8px;text-decoration:none;">
+                <a href="${appUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;font-size:14px;font-weight:600;padding:10px 24px;border-radius:8px;text-decoration:none;">
                   Open Service Delivery Intelligence
                 </a>
               </p>
@@ -263,7 +265,8 @@ export async function sendAssignmentEmail({
 
   const resend = new Resend(process.env.RESEND_API_KEY);
   const subject = `You've been assigned to ${projectName} (${quarter})`;
-  const html = buildAssignmentEmailHtml({ recipientName, role, projectName, customerName, quarter });
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const html = buildAssignmentEmailHtml({ recipientName, role, projectName, customerName, quarter, appUrl });
 
   const { error } = await resend.emails.send({
     from: process.env.SENDER_EMAIL ?? "reviews@selise.ch",
