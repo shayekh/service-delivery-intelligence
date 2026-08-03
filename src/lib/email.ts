@@ -1,5 +1,28 @@
-import { Resend } from "resend";
+import nodemailer, { type Transporter } from "nodemailer";
 import type { AnalysisJson, Project } from "@/types";
+
+let transporter: Transporter | null = null;
+
+function getTransporter(): Transporter {
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT ?? 587),
+      secure: false, // STARTTLS on port 587
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASSWORD,
+      },
+    });
+  }
+  return transporter;
+}
+
+function senderFrom(): string {
+  const address = process.env.SENDER_EMAIL ?? "reviews@selise.ch";
+  const name = process.env.SENDER_NAME;
+  return name ? `"${name}" <${address}>` : address;
+}
 
 const STATUS_COLOR: Record<string, string> = {
   Green: "#16a34a",
@@ -263,21 +286,16 @@ export async function sendAssignmentEmail({
     return;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
   const subject = `You've been assigned to ${projectName} (${quarter})`;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const html = buildAssignmentEmailHtml({ recipientName, role, projectName, customerName, quarter, appUrl });
 
-  const { error } = await resend.emails.send({
-    from: process.env.SENDER_EMAIL ?? "reviews@selise.ch",
-    to: [to],
+  await getTransporter().sendMail({
+    from: senderFrom(),
+    to,
     subject,
     html,
   });
-
-  if (error) {
-    throw new Error(`Resend error: ${error.message}`);
-  }
 }
 
 function buildInviteEmailHtml({
@@ -369,20 +387,15 @@ export async function sendInviteEmail({
     return;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
   const subject = "You've been invited to Service Delivery Intelligence";
   const html = buildInviteEmailHtml({ recipientName, role, actionLink });
 
-  const { error } = await resend.emails.send({
-    from: process.env.SENDER_EMAIL ?? "reviews@selise.ch",
-    to: [to],
+  await getTransporter().sendMail({
+    from: senderFrom(),
+    to,
     subject,
     html,
   });
-
-  if (error) {
-    throw new Error(`Resend error: ${error.message}`);
-  }
 }
 
 function buildPasswordResetEmailHtml({
@@ -471,20 +484,15 @@ export async function sendPasswordResetEmail({
     return;
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
   const subject = "Reset your Service Delivery Intelligence password";
   const html = buildPasswordResetEmailHtml({ recipientName, actionLink });
 
-  const { error } = await resend.emails.send({
-    from: process.env.SENDER_EMAIL ?? "reviews@selise.ch",
-    to: [to],
+  await getTransporter().sendMail({
+    from: senderFrom(),
+    to,
     subject,
     html,
   });
-
-  if (error) {
-    throw new Error(`Resend error: ${error.message}`);
-  }
 }
 
 export async function sendReportEmail({
@@ -502,8 +510,6 @@ export async function sendReportEmail({
     );
     return;
   }
-
-  const resend = new Resend(process.env.RESEND_API_KEY);
 
   const cadenceLabel = project.review_cadence === "monthly" ? "Monthly" : "Quarterly";
   const subject = `${cadenceLabel} Service Delivery Report — ${project.project_name} | ${project.quarter}`;
@@ -528,15 +534,11 @@ export async function sendReportEmail({
     }
   }
 
-  const { error } = await resend.emails.send({
-    from: process.env.SENDER_EMAIL ?? "reviews@selise.ch",
+  await getTransporter().sendMail({
+    from: senderFrom(),
     to: recipients,
     subject,
     html,
     attachments,
   });
-
-  if (error) {
-    throw new Error(`Resend error: ${error.message}`);
-  }
 }
