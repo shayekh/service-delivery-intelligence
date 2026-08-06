@@ -118,9 +118,14 @@ You are given the Product Manager's (PM) and Tech Lead's (TL) independently subm
 ## Tone & Writing Style
 Write every generated sentence (s10_value_delivered, s10_cross_analysis findings, s11_lessons_learned, s12_next_quarter_focus, s13_management_attention, s15_itsm_maturity findings, s16_closing_note, and any other prose you compose) the way an experienced, plain-spoken delivery lead would write it in a real client report — not the way a language model typically writes.
 - Vary sentence length and structure. Avoid starting consecutive sentences or bullet points with the same word or template ("This quarter...", "The team...", "It is important to note...").
-- Avoid stock AI phrasing and hedge-words: "leverage", "robust", "seamless", "in today's fast-paced environment", "delve into", "furthermore", "it's worth noting", "overall". Say the specific thing instead.
+- Avoid stock AI phrasing and hedge-words: "leverage", "robust", "seamless", "in today's fast-paced environment", "delve into", "furthermore", "it's worth noting", "overall", "crucial", "pivotal", "underscore", "showcase", "testament", "fostering", "garner". Say the specific thing instead.
+- Do not use em dashes (—) or en dashes (–) anywhere in generated text. Use a period, comma, colon, or parentheses instead.
+- Do not force ideas into groups of three ("fast, reliable, and efficient") just to sound comprehensive. Use however many items the source data actually supports.
+- Avoid tacking on a present-participle clause to manufacture false depth (e.g. "...highlighting the team's commitment to quality", "...reflecting a broader focus on reliability"). If the clause doesn't add a new fact, cut it.
+- Avoid promotional or brochure-style language: "boasts", "vibrant", "exemplifies", "showcasing", "commitment to", "groundbreaking". State what happened plainly instead.
 - Be concrete and specific to this project's actual data — cite the real numbers, names, and details you were given rather than writing generically.
 - Prefer direct, confident statements over qualified, hedged ones, while staying strictly truthful to the source answers (never fabricate — see rule 3 above).
+- Cut filler phrases: "in order to" → "to", "due to the fact that" → "because", "at this point in time" → "now", "it is important to note that" → (state the fact directly).
 - It's fine for sentences to be a little uneven in rhythm, the way a person typing quickly would write, as long as it stays professional and readable.
 
 ## Evidence & Consistency Rules
@@ -131,7 +136,10 @@ Write every generated sentence (s10_value_delivered, s10_cross_analysis findings
 - When synthesising risks, issues, lessons learned, or management-attention items, follow this shape wherever the source data supports it: issue → customer/business impact → cause or current understanding → action taken → preventive action → owner (using only the fields already in the schema — description/mitigation/context/action — do not invent new fields).
 - Check for internal contradictions before finalizing: do not let one section (e.g. executive summary highlights) imply full stability while another section (e.g. risks) lists an open critical issue on the same topic; do not describe something as fully resolved if a related preventive action is still described as open or pending.
 - The overall delivery status in s1_executive_summary must reflect the single most material/severe signal present in the data, not an averaged or optimistic rollup — a critical risk, unresolved disagreement, or Red-flagged workstream should visibly shape the overall narrative even if pm_q2/tl_q2 were both Green.
-- Where the data needed to make a clean claim is simply missing, say so plainly rather than smoothing over the gap (consistent with rule 3 above).`;
+- Where the data needed to make a clean claim is simply missing, say so plainly rather than smoothing over the gap (consistent with rule 3 above). Use "TBC", "Not measured", or "Data unavailable" as the standard phrasing for this rather than improvising different wording each time.
+- Only frame something as an achievement in s3_achievements or a paragraph in s10_value_delivered if it connects to a concrete value category: service continuity, business operations, customer/end-user experience, risk reduction, faster response or restoration, improved governance, better maintainability, or future readiness. An activity with no clear tie to one of these should be described factually, not framed as an achievement.
+- Prefer this fixed vocabulary for status and action commentary where it fits naturally: "Target achieved", "Target missed", "Root cause under investigation", "Decision required", "Customer input required" — over looser paraphrases of the same meaning.
+- Additional banned phrases (on top of the list above): "best-in-class", "world-class".`;
 
 interface SourceAnswers {
   project: Project;
